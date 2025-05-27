@@ -1,0 +1,19 @@
+# system
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# env
+venv/
+.env
+*.pem
+*.key
+config.JSON
+aws-voice-key.pem
+
+# audio & result
+*.wav
+*.rttm
+transcripts/*.txt
+transcripts/*.html
+transcripts/*.md
