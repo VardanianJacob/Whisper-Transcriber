@@ -1,1 +1,30 @@
+# 🚫 System
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# 🔒 Secrets & config
 .env
+*.pem
+*.key
+config.JSON
+
+# 🐍 Virtual env
+venv/
+venv.bak/
+env/
+ENV/
+env.bak/
+
+# 🎧 Audio & output
+*.wav
+*.rttm
+transcripts/*.txt
+transcripts/*.md
+transcripts/*.html
+
+# 💻 IDE files
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
