@@ -1,25 +1,27 @@
 import os
 import json
 
-
 def format_verbose_json_to_markdown(data):
     output = []
     segments = data.get("segments", [])
+    if not segments:
+        return "⚠️ No segments found in transcription."
 
     for segment in segments:
         start = segment.get("start", 0)
         end = segment.get("end", 0)
         speaker = segment.get("speaker", "Speaker ?")
         text = segment.get("text", "").strip()
-
         line = f"**{speaker}** [{start:.2f}s - {end:.2f}s]: {text}"
         output.append(line)
 
     return "\n\n".join(output)
 
-
 def format_verbose_json_to_html(data):
     segments = data.get("segments", [])
+    if not segments:
+        return "<p>⚠️ No segments found in transcription.</p>"
+
     html_lines = [
         "<!DOCTYPE html>",
         "<html lang='en'>",
@@ -48,34 +50,53 @@ def format_verbose_json_to_html(data):
     html_lines.append("</body></html>")
     return "\n".join(html_lines)
 
-
-def save_transcript_to_file(data_or_text, source_file, response_format):
+def save_transcript_to_file(data_or_text, source_file, output_format):
     base = os.path.basename(source_file)
     name, _ = os.path.splitext(base)
     output_dir = "transcripts"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Markdown
-    if response_format == "verbose_json":
-        ext = ".md"
-        data = json.loads(data_or_text) if isinstance(data_or_text, str) else data_or_text
-        markdown = format_verbose_json_to_markdown(data)
-        markdown_path = os.path.join(output_dir, f"{name}_transcript{ext}")
-        with open(markdown_path, "w", encoding="utf-8") as f:
-            f.write(markdown)
-        print(f"💾 Saved Markdown transcript to: {markdown_path}")
+    # Try parse if stringified JSON
+    if isinstance(data_or_text, str):
+        try:
+            data = json.loads(data_or_text)
+        except Exception:
+            data = data_or_text  # plain text
+    else:
+        data = data_or_text
 
-        # HTML
+    # MARKDOWN/HTML mode
+    if output_format == "markdown":
+        if not isinstance(data, dict):
+            raise ValueError("Expected dict for markdown output")
+
+        markdown = format_verbose_json_to_markdown(data)
         html = format_verbose_json_to_html(data)
+
+        md_path = os.path.join(output_dir, f"{name}_transcript.md")
         html_path = os.path.join(output_dir, f"{name}_transcript.html")
+
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(markdown)
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html)
-        print(f"🌐 Saved HTML transcript to: {html_path}")
 
+        print(f"💾 Saved Markdown transcript to: {md_path}")
+        print(f"🌐 Saved HTML transcript to: {html_path}")
+        return md_path, html_path
+
+    # SRT or TXT output
+    ext = ".srt" if output_format == "srt" else ".txt"
+    out_path = os.path.join(output_dir, f"{name}_transcript{ext}")
+
+    # Convert to string if needed
+    if isinstance(data, (dict, list)):
+        text = json.dumps(data, indent=2)
     else:
-        ext = ".srt" if response_format == "srt" else ".txt"
-        text = data_or_text
-        text_path = os.path.join(output_dir, f"{name}_transcript{ext}")
-        with open(text_path, "w", encoding="utf-8") as f:
-            f.write(text)
-        print(f"💾 Saved transcript to: {text_path}")
+        text = str(data)
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+    print(f"💾 Saved {output_format.upper()} transcript to: {out_path}")
+    return out_path

@@ -12,7 +12,6 @@ from config import (
     DEFAULT_TRANSLATE
 )
 
-
 def transcribe_audio(
     file_path,
     language=DEFAULT_LANGUAGE,
@@ -33,24 +32,25 @@ def transcribe_audio(
         "file": open(file_path, "rb")
     }
 
-    data = {
-        "language": language,
-        "response_format": response_format,
-        "speaker_labels": str(speaker_labels).lower(),
-        "translate": str(translate).lower()
-    }
+    # Use list of tuples for proper multipart encoding of array fields
+    data = [
+        ("language", language),
+        ("response_format", response_format),
+        ("speaker_labels", str(speaker_labels).lower()),
+        ("translate", str(translate).lower())
+    ]
 
     if prompt:
-        data["prompt"] = prompt
+        data.append(("prompt", prompt))
     if callback_url:
-        data["callback_url"] = callback_url
+        data.append(("callback_url", callback_url))
     if min_speakers is not None:
-        data["min_speakers"] = str(min_speakers)
+        data.append(("min_speakers", str(min_speakers)))
     if max_speakers is not None:
-        data["max_speakers"] = str(max_speakers)
+        data.append(("max_speakers", str(max_speakers)))
     if timestamp_granularities:
         for granularity in timestamp_granularities:
-            data["timestamp_granularities[]"] = granularity
+            data.append(("timestamp_granularities[]", granularity))
 
     response = requests.post(WHISPER_API_URL, headers=headers, files=files, data=data)
 

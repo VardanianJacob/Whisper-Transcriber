@@ -56,11 +56,25 @@ def main():
             max_speakers=args.max_speakers
         )
 
-        print("\n📦 RAW API RESPONSE (truncated):")
-        print(json.dumps(result, indent=2)[:3000])
+        print("\n📦 API Response:")
+        if isinstance(result, dict):
+            print(json.dumps(result, indent=2)[:3000])  # truncate if huge
+        else:
+            print(result[:1000])  # for plain text or srt
 
         print("\n📝 Saving transcript...")
-        save_transcript_to_file(result, args.file, args.response_format)
+        paths = save_transcript_to_file(result, args.file, args.response_format)
+
+        if isinstance(paths, tuple):
+            print(f"✅ Markdown saved: {paths[0]}")
+            print(f"🌐 HTML saved: {paths[1]}")
+        else:
+            print(f"✅ Transcript saved: {paths}")
+
+        if isinstance(result, dict) and "segments" in result:
+            print("\n📑 Speaker Segments:")
+            for seg in result["segments"]:
+                print(f"- {seg.get('speaker', 'Speaker')} [{seg.get('start', 0):.2f} – {seg.get('end', 0):.2f}]: {seg.get('text', '')}")
 
     except Exception as e:
         print(f"❌ Failed to transcribe: {e}")
