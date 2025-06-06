@@ -10,7 +10,6 @@ from config import (
     ENV,
     INTERNAL_API_KEY,
     DEFAULT_LANGUAGE,
-    DEFAULT_RESPONSE_FORMAT,
     DEFAULT_TIMESTAMP_GRANULARITIES,
     DEFAULT_MIN_SPEAKERS,
     DEFAULT_MAX_SPEAKERS,
@@ -18,24 +17,26 @@ from config import (
     DEFAULT_TRANSLATE,
     DEFAULT_OUTPUT_FORMAT,
     ALLOWED_USERNAMES,
-    BOT_TOKEN
 )
 
 from api.whisper import transcribe_audio
-from utils.save import save_transcript_to_file, format_verbose_json_to_markdown, format_verbose_json_to_html
+from utils.save import (
+    format_verbose_json_to_markdown,
+    format_verbose_json_to_html
+)
 from utils.telegram_auth import verify_telegram_init_data
 
-# 🛠 Логгирование запуска
+# Логирование
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info(f"🔐 Whisper API starting in {ENV.upper()} mode")
 
-# 🔒 Проверка API-ключа
+# Проверка API-ключа
 def verify_api_key(x_api_key: str = Header(...)):
     if x_api_key != INTERNAL_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API Key")
 
-# 🚀 FastAPI приложение
+# FastAPI приложение
 app = FastAPI(
     title="🌹 Whisper Transcription API",
     description="Upload audio files and get speaker-labeled transcriptions using Lemonfox Whisper API.",
@@ -53,30 +54,20 @@ app = FastAPI(
     }
 )
 
-# 🌐 Статические файлы (Mini App)
+# Подключаем Mini App
 app.mount("/mini_app", StaticFiles(directory="mini_app", html=True), name="mini_app")
 
-# 🌐 Простейшая HTML-форма
+# HTML-заглушка на главной
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return '''
-    <html>
-        <head><title>Upload Audio</title></head>
-        <body>
-            <h1>Upload an audio file</h1>
-            <form action="/upload" enctype="multipart/form-data" method="post">
-                <input name="file" type="file" accept="audio/*">
-                <input type="submit">
-            </form>
-        </body>
-    </html>
+    <html><body><h1>🌿 Whisper API running</h1></body></html>
     '''
 
-# 🗓 Эндпоинт 1: возвращает JSON (Markdown и HTML как строки)
+# 🎯 Эндпоинт 1: Возвращает JSON с расшифровкой
 @app.post("/upload", tags=["Transcription"], dependencies=[Depends(verify_api_key)])
 async def upload_audio(
     file: UploadFile = File(...),
-    response_format: str = Form(DEFAULT_RESPONSE_FORMAT),
     speaker_labels: bool = Form(DEFAULT_SPEAKER_LABELS),
     prompt: Optional[str] = Form(None),
     language: str = Form(DEFAULT_LANGUAGE),
@@ -100,21 +91,25 @@ async def upload_audio(
             prompt=prompt,
             speaker_labels=speaker_labels,
             translate=translate,
-            response_format=response_format,
+            response_format="verbose_json",
             timestamp_granularities=timestamp_granularities,
             callback_url=callback_url,
             min_speakers=min_speakers,
             max_speakers=max_speakers
         )
 
-        markdown = format_verbose_json_to_markdown(result)
-        html = format_verbose_json_to_html(result)
+        if output_format == "markdown":
+            content = format_verbose_json_to_markdown(result)
+        elif output_format == "srt":
+            content = result.get("srt", "") or "No SRT available"
+        else:
+            content = result.get("text", "") or "No plain text available"
 
         return {
             "message": "✅ Transcription complete",
             "filename": file.filename,
-            "transcript_markdown": markdown,
-            "transcript_html": html
+            "output_format": output_format,
+            "transcript": content
         }
 
     except Exception as e:
@@ -124,11 +119,10 @@ async def upload_audio(
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-# 🗓 Эндпоинт 2: возвращает файл Markdown (для Telegram и скачивания)
+# 📥 Эндпоинт 2: Возвращает файл Markdown для скачивания
 @app.post("/upload/file", tags=["Transcription"], dependencies=[Depends(verify_api_key)])
 async def upload_audio_file(
     file: UploadFile = File(...),
-    response_format: str = Form(DEFAULT_RESPONSE_FORMAT),
     speaker_labels: bool = Form(DEFAULT_SPEAKER_LABELS),
     prompt: Optional[str] = Form(None),
     language: str = Form(DEFAULT_LANGUAGE),
@@ -151,7 +145,7 @@ async def upload_audio_file(
             prompt=prompt,
             speaker_labels=speaker_labels,
             translate=translate,
-            response_format=response_format,
+            response_format="verbose_json",
             timestamp_granularities=timestamp_granularities,
             callback_url=callback_url,
             min_speakers=min_speakers,

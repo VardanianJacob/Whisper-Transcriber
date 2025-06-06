@@ -1,23 +1,18 @@
-Вот готовый `README.md` — можешь просто скопировать и вставить целиком в файл:
-
----
-
-````markdown
 # 🧠 Whisper Transcriber
 
 Voice diarization and transcription pipeline powered by [Lemonfox Whisper API](https://lemonfox.ai), with simple CLI, FastAPI interface, and optional Telegram bot integration.
 
 ---
 
-## 🚀 Features
+## ✨ Features
 
-- 🎙️ Audio transcription using Whisper
-- 👤 Speaker diarization
-- 📁 Supports `.mp3`, `.wav`, `.m4a`, and more
-- 📜 Output formats: `.md`, `.html`, `.srt`, `.txt`
-- 🌐 FastAPI web interface for uploads
-- 🤖 Optional Telegram bot interface
-- 🔒 Secure config via `.env`
+* 🎧 Audio transcription using Whisper
+* 👤 Speaker diarization
+* 📁 Supports `.mp3`, `.wav`, `.m4a`, and more
+* 📜 Output formats: `.md`, `.html`, `.srt`, `.txt`
+* 🌐 FastAPI web interface for uploads
+* 🤖 Optional Telegram bot interface
+* 🔐 Secure config via `.env`
 
 ---
 
@@ -29,7 +24,7 @@ cd whisper-transcriber
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-````
+```
 
 ---
 
@@ -57,7 +52,7 @@ ENV=dev  # or "prod" to disable Swagger UI in production
 python main.py path/to/audio.mp3
 ```
 
-### 🧪 FastAPI server
+### 🤪 FastAPI server
 
 ```bash
 uvicorn server:app --reload
@@ -94,7 +89,7 @@ Production endpoints require an `x-api-key` header:
 
 ---
 
-## 🧾 .gitignore & Security
+## 📜 .gitignore & Security
 
 This repo excludes:
 
@@ -106,16 +101,14 @@ No secrets or temporary files will be committed accidentally.
 
 ---
 
-## 🛣 Roadmap
+## 🛃 Roadmap
 
 * [x] Whisper transcription
 * [x] Speaker diarization
 * [x] Markdown + HTML generation
-
 
 ---
 
 ## 📜 License
 
 MIT — use freely, with attribution.
-

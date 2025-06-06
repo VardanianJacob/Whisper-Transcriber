@@ -1,13 +1,21 @@
 import os
-import argparse
 import json
+import argparse
+from dotenv import load_dotenv
 from api.whisper import transcribe_audio
 from utils.save import save_transcript_to_file
 from config import (
     DEFAULT_LANGUAGE,
-    DEFAULT_RESPONSE_FORMAT,
-    DEFAULT_TIMESTAMP_GRANULARITIES
+    DEFAULT_TIMESTAMP_GRANULARITIES,
+    DEFAULT_MIN_SPEAKERS,
+    DEFAULT_MAX_SPEAKERS,
+    DEFAULT_SPEAKER_LABELS,
+    DEFAULT_TRANSLATE,
+    DEFAULT_OUTPUT_FORMAT
 )
+
+# 🛠️ Загрузка переменных окружения
+load_dotenv(".env.local")
 
 def str2bool(v):
     return str(v).lower() in ("yes", "true", "t", "1")
@@ -18,13 +26,13 @@ def main():
     parser.add_argument("file", nargs="?", help="Path to the audio file")
     parser.add_argument("--language", default=DEFAULT_LANGUAGE, help="Language of the audio")
     parser.add_argument("--prompt", help="Custom prompt for the model")
-    parser.add_argument("--speaker_labels", type=str2bool, nargs="?", const=True, default=True, help="Enable speaker labeling")
-    parser.add_argument("--translate", type=str2bool, nargs="?", const=True, default=False, help="Translate output to English")
-    parser.add_argument("--response_format", default=DEFAULT_RESPONSE_FORMAT, choices=["json", "text", "srt", "verbose_json"], help="Format of response")
+    parser.add_argument("--speaker_labels", type=str2bool, nargs="?", const=True, default=DEFAULT_SPEAKER_LABELS, help="Enable speaker labeling")
+    parser.add_argument("--translate", type=str2bool, nargs="?", const=True, default=DEFAULT_TRANSLATE, help="Translate output to English")
     parser.add_argument("--timestamp_granularities", nargs="+", default=DEFAULT_TIMESTAMP_GRANULARITIES, help="Timestamp detail level: segment, word")
     parser.add_argument("--callback_url", help="Webhook URL for async processing")
-    parser.add_argument("--min_speakers", type=int, help="Minimum number of speakers")
-    parser.add_argument("--max_speakers", type=int, help="Maximum number of speakers")
+    parser.add_argument("--min_speakers", type=int, default=DEFAULT_MIN_SPEAKERS, help="Minimum number of speakers")
+    parser.add_argument("--max_speakers", type=int, default=DEFAULT_MAX_SPEAKERS, help="Maximum number of speakers")
+    parser.add_argument("--output_format", default=DEFAULT_OUTPUT_FORMAT, choices=["text", "markdown", "srt"], help="Output file format")
 
     args = parser.parse_args()
 
@@ -49,7 +57,7 @@ def main():
             prompt=args.prompt,
             speaker_labels=args.speaker_labels,
             translate=args.translate,
-            response_format=args.response_format,
+            response_format="verbose_json",
             timestamp_granularities=args.timestamp_granularities,
             callback_url=args.callback_url,
             min_speakers=args.min_speakers,
@@ -58,12 +66,12 @@ def main():
 
         print("\n📦 API Response:")
         if isinstance(result, dict):
-            print(json.dumps(result, indent=2)[:3000])  # truncate if huge
+            print(json.dumps(result, indent=2)[:3000])
         else:
-            print(result[:1000])  # for plain text or srt
+            print(result[:1000])
 
         print("\n📝 Saving transcript...")
-        paths = save_transcript_to_file(result, args.file, args.response_format)
+        paths = save_transcript_to_file(result, args.file, args.output_format)
 
         if isinstance(paths, tuple):
             print(f"✅ Markdown saved: {paths[0]}")

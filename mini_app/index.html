@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Upload Audio</title>
   <style>
     body { font-family: sans-serif; padding: 20px; background: #f6f6f6; }
-    form { background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    label { display: block; margin-bottom: 10px; }
-    input[type="text"], input[type="file"] { width: 100%; padding: 8px; margin-top: 5px; }
-    button { padding: 10px 20px; margin-top: 15px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    form { background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    label { display: block; margin-top: 15px; }
+    input[type="text"], input[type="file"], select { width: 100%; padding: 8px; margin-top: 5px; }
+    button { padding: 10px 20px; margin-top: 20px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
     button:hover { background: #0077b3; }
-    .status { margin-top: 15px; }
+    .status { margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -25,18 +25,48 @@
       <input type="text" name="prompt">
     </label>
 
-    <label>
-      <input type="checkbox" name="translate"> Translate to English
+    <label>Translate to English:
+      <input type="checkbox" name="translate">
     </label>
 
-    <!-- Hidden fields -->
-    <input type="hidden" name="language" value="en">
-    <input type="hidden" name="speaker_labels" value="true">
-    <input type="hidden" name="response_format" value="text">
-    <input type="hidden" name="timestamp_granularities" value="segment">
-    <input type="hidden" name="min_speakers" value="1">
-    <input type="hidden" name="max_speakers" value="2">
-    <input type="hidden" name="output_format" value="text">
+    <label>Language:
+      <input type="text" name="language" value="english">
+    </label>
+
+    <label>Speaker Labels:
+      <select name="speaker_labels">
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    </label>
+
+    <label>Timestamp Granularities:
+      <select name="timestamp_granularities">
+        <option value="segment">segment</option>
+        <option value="word">word</option>
+      </select>
+    </label>
+
+    <label>Min Speakers:
+      <input type="number" name="min_speakers" value="1">
+    </label>
+
+    <label>Max Speakers:
+      <input type="number" name="max_speakers" value="8">
+    </label>
+
+    <label>Output Format:
+      <select name="output_format">
+        <option value="text">text</option>
+        <option value="markdown">markdown</option>
+        <option value="srt">srt</option>
+      </select>
+    </label>
+
+    <label>API Key:
+      <input type="text" name="x_api_key" placeholder="Enter your API key" required>
+    </label>
+
     <input type="hidden" name="initData" id="initData">
 
     <button type="submit">Upload</button>
@@ -52,48 +82,37 @@
       const form = document.getElementById("uploadForm");
       const status = document.getElementById("status");
 
-      if (!initData) {
-        status.textContent = "❌ Please open this page from Telegram.";
-        return;
-      }
-
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        status.textContent = "🔄 Authenticating...";
+        status.textContent = "🔄 Uploading...";
 
         const formData = new FormData(form);
+        const apiKey = formData.get("x_api_key");
+        formData.delete("x_api_key");
 
         try {
-          // Step 1: Authorize user
-          const authRes = await fetch("/webapp-auth", {
-            method: "POST",
-            body: formData
-          });
-
+          const authRes = await fetch("/webapp-auth", { method: "POST", body: formData });
           if (!authRes.ok) {
             const err = await authRes.text();
             status.textContent = "❌ Access denied: " + err;
             return;
           }
 
-          status.textContent = "🔄 Uploading...";
-
-          // Step 2: Upload audio
           const uploadRes = await fetch("/upload", {
             method: "POST",
+            headers: { "x-api-key": apiKey },
             body: formData
           });
 
+          const result = await uploadRes.json();
           if (uploadRes.ok) {
-            const result = await uploadRes.json();
             status.textContent = "✅ " + (result.message || "Upload successful!");
           } else {
-            const err = await uploadRes.text();
-            status.textContent = `❌ Error: ${err}`;
+            status.textContent = "❌ Error: " + (result.error || JSON.stringify(result));
           }
 
-        } catch (e) {
-          status.textContent = `❌ Exception: ${e.message}`;
+        } catch (err) {
+          status.textContent = "❌ Exception: " + err.message;
         }
       });
     });

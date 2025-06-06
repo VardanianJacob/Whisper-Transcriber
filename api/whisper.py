@@ -3,7 +3,6 @@ from config import (
     WHISPER_API_KEY,
     WHISPER_API_URL,
     DEFAULT_LANGUAGE,
-    DEFAULT_RESPONSE_FORMAT,
     DEFAULT_TIMESTAMP_GRANULARITIES,
     DEFAULT_MIN_SPEAKERS,
     DEFAULT_MAX_SPEAKERS,
@@ -17,7 +16,6 @@ def transcribe_audio(
     prompt=None,
     speaker_labels=DEFAULT_SPEAKER_LABELS,
     translate=DEFAULT_TRANSLATE,
-    response_format=DEFAULT_RESPONSE_FORMAT,
     timestamp_granularities=DEFAULT_TIMESTAMP_GRANULARITIES,
     callback_url=None,
     min_speakers=DEFAULT_MIN_SPEAKERS,
@@ -29,7 +27,7 @@ def transcribe_audio(
 
     data = [
         ("language", language),
-        ("response_format", response_format),
+        ("response_format", "verbose_json"),
         ("speaker_labels", str(speaker_labels).lower()),
         ("translate", str(translate).lower())
     ]
@@ -51,6 +49,6 @@ def transcribe_audio(
         response = requests.post(WHISPER_API_URL, headers=headers, files=files, data=data)
 
     if response.status_code == 200:
-        return response.json() if response_format.endswith("json") else response.text
+        return response.json()
     else:
         raise Exception(f"❌ Error {response.status_code}: {response.text}")

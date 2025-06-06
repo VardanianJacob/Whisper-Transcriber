@@ -1,22 +1,26 @@
-# fly.toml app configuration file generated for whisperapi on 2025-06-06T22:56:13+04:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# 🌐 fly.toml — Fly.io config for WhisperAPI
+# 📅 Generated: 2025-06-06
 
-app = 'whisperapi'
-primary_region = 'otp'
+app = "whisperapi"
+primary_region = "otp"
 
 [build]
+# Можно указать dockerfile или builder, если понадобится:
+# dockerfile = "Dockerfile"
+
+[env]
+  # 🔧 Значения переменных можно переопределить через `fly secrets`
+  ENV = "dev"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'stop'
+  auto_stop_machines = "stop"
   auto_start_machines = true
   min_machines_running = 0
-  processes = ['app']
+  processes = ["app"]
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
+  memory = "1gb"
+  cpu_kind = "shared"
   cpus = 1

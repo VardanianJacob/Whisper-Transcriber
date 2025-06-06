@@ -1,34 +1,28 @@
-# 🚫 System
-.DS_Store
+# 🚫 Python cache
 __pycache__/
 *.py[cod]
 
-# 🔒 Secrets & config
+# 🔒 Secrets and config
 .env
+.env.*
 *.pem
 *.key
 config.JSON
 
-# 🐍 Virtual env
+# 🐍 Virtual environments
 venv/
-venv.bak/
 env/
 ENV/
-env.bak/
 
-# 🎧 Audio & output
+# 🎧 Audio and transcript output
 *.wav
 *.rttm
 transcripts/*.txt
 transcripts/*.md
 transcripts/*.html
 
-# 💻 IDE files
+# 💻 IDE settings
 .idea/
 *.iml
 *.sublime-project
 *.sublime-workspace
-
-# 🚀 Git & metadata
-.git/
-.gitignore

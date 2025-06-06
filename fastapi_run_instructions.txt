@@ -1,76 +1,71 @@
-Да, эти инструкции тоже стоит немного обновить, чтобы отразить:
+# 🧠 Whisper Transcriber – FastAPI Server Guide
 
-* ⚙️ Использование `.env.template`
-* 🔐 Защиту API через `x-api-key`
-* 🚫 Автоматическое отключение Swagger в проде (`ENV=prod`)
-
-Вот **обновлённый и финализированный `fastapi_run_instructions.txt`** — можешь просто заменить им старый:
+This guide explains how to launch the FastAPI server for audio transcription using the Whisper API.
 
 ---
 
-````txt
-# 🔧 Инструкция по запуску FastAPI-сервера для транскрипции
+## 📁 Project Structure
 
-## 📁 Структура проекта
-
-Убедись, что структура проекта выглядит так:
+Make sure your project structure looks like this:
 
 WhisperAPI/
 ├── api/
 │   └── whisper.py
 ├── utils/
-│   └── save.py
+│   ├── save.py
+│   └── telegram_auth.py
+├── mini_app/
+│   └── index.html
+├── transcripts/
 ├── config.py
-├── main.py
-├── server.py           ← точка входа для веб-интерфейса
-├── .env                ← создается на основе .env.template
-├── env.template        ← пример конфигурации
+├── server.py            ← main FastAPI entry point
+├── main.py              ← CLI tool entry point
+├── .env                 ← local environment config
+├── env.template         ← example config file
 ├── requirements.txt
-└── transcripts/
+├── Dockerfile
+├── fly.toml
+└── fastapi_run_instructions.txt
 
 ---
 
-## ✅ Шаги по запуску FastAPI-сервера
+## ⚙️ Setup Instructions
 
-### 1. Перейти в директорию проекта
-
-```bash
-cd путь/к/твоему/проекту/WhisperAPI
-````
-
-Например:
+### 1. Navigate to project directory
 
 ```bash
-cd ~/PycharmProjects/WhisperAPI
+cd /path/to/WhisperAPI
 ```
 
 ---
 
-### 2. Создать `.env` на основе шаблона
+### 2. Create `.env` from template
 
 ```bash
 cp env.template .env
 ```
 
-Затем открой `.env` и вставь свои ключи:
+Then open `.env` and add your keys:
 
 ```env
 WHISPER_API_KEY=your_lemonfox_key
-INTERNAL_API_KEY=your_secret_token
-ENV=dev  # для разработки (оставь prod — для прод-сервера)
+INTERNAL_API_KEY=your_internal_key
+ENV=dev  # use "prod" for production (hides Swagger docs)
 ```
 
 ---
 
-### 3. Активировать виртуальное окружение (если ещё не активировано)
+### 3. Activate virtual environment
 
 ```bash
 source venv/bin/activate
 ```
 
+(If not created yet: `python3 -m venv venv`)
+
 ---
 
-### 4. Установить зависимости
+### 4. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -78,7 +73,7 @@ pip install -r requirements.txt
 
 ---
 
-### 5. Запустить сервер
+### 5. Run FastAPI server
 
 ```bash
 uvicorn server:app --reload
@@ -86,36 +81,43 @@ uvicorn server:app --reload
 
 ---
 
-### 6. Открыть в браузере:
+### 6. Access in browser
 
-* 🌐 HTML-форма загрузки: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-* 📑 Swagger UI (если `ENV=dev`): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-* 📘 ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+* Upload UI: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+* Swagger Docs (if `ENV=dev`): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+* ReDoc (if `ENV=dev`): [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ---
 
-## 🔐 Авторизация в проде
+## 🔐 API Protection
 
-Если `ENV=prod`, доступ к API возможен только с `x-api-key`:
+When `ENV=prod`, API access requires:
 
-```bash
--H "x-api-key: your_internal_key"
+```http
+x-api-key: your_internal_key
 ```
 
----
-
-## ⏹️ Остановить сервер
-
-Нажми в терминале:
-
-```bash
-Ctrl + C
-```
+Without it, requests return `403 Forbidden`.
 
 ---
 
-## 🧠 Советы
+## 📂 Output
 
-* Все чувствительные данные хранятся в `.env` (и игнорируются Git).
-* Swagger отключается автоматически на проде.
-* Транскрипты сохраняются в `/transcripts/` и также не пушатся в репозиторий.
+Transcriptions are saved into the `transcripts/` folder as:
+
+- `.md` and `.html` (if `output_format=markdown`)
+- `.txt`, `.srt`, or `.json` depending on response format
+
+---
+
+## ⛔ Stop the server
+
+Use `Ctrl + C` in the terminal.
+
+---
+
+## 💡 Tips
+
+- `.env` is excluded from Git.
+- Swagger UI is auto-disabled in production.
+- Large files (>100MB) will be rejected by the API.
