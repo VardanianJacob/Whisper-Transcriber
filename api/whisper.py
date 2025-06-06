@@ -1,5 +1,4 @@
 import requests
-import os
 from config import (
     WHISPER_API_KEY,
     WHISPER_API_URL,
@@ -28,11 +27,6 @@ def transcribe_audio(
         "Authorization": f"Bearer {WHISPER_API_KEY}"
     }
 
-    files = {
-        "file": open(file_path, "rb")
-    }
-
-    # Use list of tuples for proper multipart encoding of array fields
     data = [
         ("language", language),
         ("response_format", response_format),
@@ -52,7 +46,9 @@ def transcribe_audio(
         for granularity in timestamp_granularities:
             data.append(("timestamp_granularities[]", granularity))
 
-    response = requests.post(WHISPER_API_URL, headers=headers, files=files, data=data)
+    with open(file_path, "rb") as f:
+        files = {"file": f}
+        response = requests.post(WHISPER_API_URL, headers=headers, files=files, data=data)
 
     if response.status_code == 200:
         return response.json() if response_format.endswith("json") else response.text

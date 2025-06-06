@@ -4,7 +4,7 @@ __pycache__/
 *.py[cod]
 
 # 🔒 Secrets & config
-.env.local
+.env
 *.pem
 *.key
 config.JSON
@@ -28,3 +28,7 @@ transcripts/*.html
 *.iml
 *.sublime-project
 *.sublime-workspace
+
+# 🚀 Git & metadata
+.git/
+.gitignore

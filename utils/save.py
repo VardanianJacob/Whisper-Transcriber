@@ -42,7 +42,7 @@ def format_verbose_json_to_html(data):
     for seg in segments:
         speaker = seg.get("speaker", "Speaker")
         start = seg.get("start", 0)
-        text = seg.get("text", "")
+        text = seg.get("text", "").strip()
         timestamp = f"{int(start // 60):02}:{int(start % 60):02}"
         html_lines.append(f"<h3>{speaker} <small>({timestamp})</small></h3>")
         html_lines.append(f"<p>{text}</p>")
@@ -60,12 +60,11 @@ def save_transcript_to_file(data_or_text, source_file, output_format):
     if isinstance(data_or_text, str):
         try:
             data = json.loads(data_or_text)
-        except Exception:
+        except json.JSONDecodeError:
             data = data_or_text  # plain text
     else:
         data = data_or_text
 
-    # MARKDOWN/HTML mode
     if output_format == "markdown":
         if not isinstance(data, dict):
             raise ValueError("Expected dict for markdown output")
@@ -91,7 +90,7 @@ def save_transcript_to_file(data_or_text, source_file, output_format):
 
     # Convert to string if needed
     if isinstance(data, (dict, list)):
-        text = json.dumps(data, indent=2)
+        text = json.dumps(data, indent=2, ensure_ascii=False)
     else:
         text = str(data)
 

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload Audio</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f6f6f6; }
+    form { background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    label { display: block; margin-bottom: 10px; }
+    input[type="text"], input[type="file"] { width: 100%; padding: 8px; margin-top: 5px; }
+    button { padding: 10px 20px; margin-top: 15px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0077b3; }
+    .status { margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <form id="uploadForm">
+    <h2>🎤 Upload your audio</h2>
+
+    <label>Audio file:
+      <input type="file" name="file" accept="audio/*" required>
+    </label>
+
+    <label>Prompt:
+      <input type="text" name="prompt">
+    </label>
+
+    <label>
+      <input type="checkbox" name="translate"> Translate to English
+    </label>
+
+    <!-- Hidden fields -->
+    <input type="hidden" name="language" value="en">
+    <input type="hidden" name="speaker_labels" value="true">
+    <input type="hidden" name="response_format" value="text">
+    <input type="hidden" name="timestamp_granularities" value="segment">
+    <input type="hidden" name="min_speakers" value="1">
+    <input type="hidden" name="max_speakers" value="2">
+    <input type="hidden" name="output_format" value="text">
+    <input type="hidden" name="initData" id="initData">
+
+    <button type="submit">Upload</button>
+    <div class="status" id="status"></div>
+  </form>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const tg = window.Telegram?.WebApp;
+      const initData = tg?.initData || "";
+      document.getElementById("initData").value = initData;
+
+      const form = document.getElementById("uploadForm");
+      const status = document.getElementById("status");
+
+      if (!initData) {
+        status.textContent = "❌ Please open this page from Telegram.";
+        return;
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        status.textContent = "🔄 Authenticating...";
+
+        const formData = new FormData(form);
+
+        try {
+          // Step 1: Authorize user
+          const authRes = await fetch("/webapp-auth", {
+            method: "POST",
+            body: formData
+          });
+
+          if (!authRes.ok) {
+            const err = await authRes.text();
+            status.textContent = "❌ Access denied: " + err;
+            return;
+          }
+
+          status.textContent = "🔄 Uploading...";
+
+          // Step 2: Upload audio
+          const uploadRes = await fetch("/upload", {
+            method: "POST",
+            body: formData
+          });
+
+          if (uploadRes.ok) {
+            const result = await uploadRes.json();
+            status.textContent = "✅ " + (result.message || "Upload successful!");
+          } else {
+            const err = await uploadRes.text();
+            status.textContent = `❌ Error: ${err}`;
+          }
+
+        } catch (e) {
+          status.textContent = `❌ Exception: ${e.message}`;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

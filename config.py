@@ -22,3 +22,8 @@ DEFAULT_MAX_SPEAKERS = int(os.getenv("DEFAULT_MAX_SPEAKERS", 8))
 DEFAULT_OUTPUT_FORMAT = os.getenv("DEFAULT_OUTPUT_FORMAT", "markdown")
 DEFAULT_SPEAKER_LABELS = os.getenv("DEFAULT_SPEAKER_LABELS", "true").lower() == "true"
 DEFAULT_TRANSLATE = os.getenv("DEFAULT_TRANSLATE", "false").lower() == "true"
+
+# Проверка на разрешенных пользователей в env файле
+ALLOWED_USERNAMES = set(name.strip().lower() for name in os.getenv("ALLOWED_USERNAMES", "").split(",") if name.strip())
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
