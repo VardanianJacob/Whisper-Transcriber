@@ -14,7 +14,7 @@ from config import (
     DEFAULT_OUTPUT_FORMAT
 )
 
-# 🛠️ Загрузка переменных окружения
+# 🛠️ Load environment variables from .env.local
 load_dotenv(".env.local")
 
 def str2bool(v):
@@ -66,9 +66,9 @@ def main():
 
         print("\n📦 API Response:")
         if isinstance(result, dict):
-            print(json.dumps(result, indent=2)[:3000])
+            print(json.dumps(result, indent=2)[:3000])  # print first 3000 chars
         else:
-            print(result[:1000])
+            print(result[:1000])  # fallback
 
         print("\n📝 Saving transcript...")
         paths = save_transcript_to_file(result, args.file, args.output_format)

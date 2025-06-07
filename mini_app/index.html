@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Upload Audio</title>
   <style>
     body { font-family: sans-serif; padding: 20px; background: #f6f6f6; }
     form { background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     label { display: block; margin-top: 15px; }
-    input[type="text"], input[type="file"], select { width: 100%; padding: 8px; margin-top: 5px; }
+    input[type="text"], input[type="file"], select, input[type="number"] { width: 100%; padding: 8px; margin-top: 5px; }
     button { padding: 10px 20px; margin-top: 20px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
     button:hover { background: #0077b3; }
     .status { margin-top: 20px; }
@@ -18,25 +18,131 @@
     <h2>🎤 Upload your audio</h2>
 
     <label>Audio file:
-      <input type="file" name="file" accept="audio/*" required>
+      <input type="file" name="file" accept="audio/*" required />
     </label>
 
     <label>Prompt:
-      <input type="text" name="prompt">
+      <input type="text" name="prompt" />
     </label>
 
     <label>Translate to English:
-      <input type="checkbox" name="translate">
+      <input type="checkbox" name="translate" />
     </label>
 
     <label>Language:
-      <input type="text" name="language" value="english">
-    </label>
-
-    <label>Speaker Labels:
-      <select name="speaker_labels">
-        <option value="true">true</option>
-        <option value="false">false</option>
+      <select name="language" required>
+        <option value="english" selected>english</option>
+        <!-- остальные языки как в предыдущем варианте -->
+        <option value="chinese">chinese</option>
+        <option value="german">german</option>
+        <option value="spanish">spanish</option>
+        <option value="russian">russian</option>
+        <option value="korean">korean</option>
+        <option value="french">french</option>
+        <option value="japanese">japanese</option>
+        <option value="portuguese">portuguese</option>
+        <option value="turkish">turkish</option>
+        <option value="polish">polish</option>
+        <option value="catalan">catalan</option>
+        <option value="dutch">dutch</option>
+        <option value="arabic">arabic</option>
+        <option value="swedish">swedish</option>
+        <option value="italian">italian</option>
+        <option value="indonesian">indonesian</option>
+        <option value="hindi">hindi</option>
+        <option value="finnish">finnish</option>
+        <option value="vietnamese">vietnamese</option>
+        <option value="hebrew">hebrew</option>
+        <option value="ukrainian">ukrainian</option>
+        <option value="greek">greek</option>
+        <option value="malay">malay</option>
+        <option value="czech">czech</option>
+        <option value="romanian">romanian</option>
+        <option value="danish">danish</option>
+        <option value="hungarian">hungarian</option>
+        <option value="tamil">tamil</option>
+        <option value="norwegian">norwegian</option>
+        <option value="thai">thai</option>
+        <option value="urdu">urdu</option>
+        <option value="croatian">croatian</option>
+        <option value="bulgarian">bulgarian</option>
+        <option value="lithuanian">lithuanian</option>
+        <option value="latin">latin</option>
+        <option value="maori">maori</option>
+        <option value="malayalam">malayalam</option>
+        <option value="welsh">welsh</option>
+        <option value="slovak">slovak</option>
+        <option value="telugu">telugu</option>
+        <option value="persian">persian</option>
+        <option value="latvian">latvian</option>
+        <option value="bengali">bengali</option>
+        <option value="serbian">serbian</option>
+        <option value="azerbaijani">azerbaijani</option>
+        <option value="slovenian">slovenian</option>
+        <option value="kannada">kannada</option>
+        <option value="estonian">estonian</option>
+        <option value="macedonian">macedonian</option>
+        <option value="breton">breton</option>
+        <option value="basque">basque</option>
+        <option value="icelandic">icelandic</option>
+        <option value="armenian">armenian</option>
+        <option value="nepali">nepali</option>
+        <option value="mongolian">mongolian</option>
+        <option value="bosnian">bosnian</option>
+        <option value="kazakh">kazakh</option>
+        <option value="albanian">albanian</option>
+        <option value="swahili">swahili</option>
+        <option value="galician">galician</option>
+        <option value="marathi">marathi</option>
+        <option value="punjabi">punjabi</option>
+        <option value="sinhala">sinhala</option>
+        <option value="khmer">khmer</option>
+        <option value="shona">shona</option>
+        <option value="yoruba">yoruba</option>
+        <option value="somali">somali</option>
+        <option value="afrikaans">afrikaans</option>
+        <option value="occitan">occitan</option>
+        <option value="georgian">georgian</option>
+        <option value="belarusian">belarusian</option>
+        <option value="tajik">tajik</option>
+        <option value="sindhi">sindhi</option>
+        <option value="gujarati">gujarati</option>
+        <option value="amharic">amharic</option>
+        <option value="yiddish">yiddish</option>
+        <option value="lao">lao</option>
+        <option value="uzbek">uzbek</option>
+        <option value="faroese">faroese</option>
+        <option value="haitian creole">haitian creole</option>
+        <option value="pashto">pashto</option>
+        <option value="turkmen">turkmen</option>
+        <option value="nynorsk">nynorsk</option>
+        <option value="maltese">maltese</option>
+        <option value="sanskrit">sanskrit</option>
+        <option value="luxembourgish">luxembourgish</option>
+        <option value="myanmar">myanmar</option>
+        <option value="tibetan">tibetan</option>
+        <option value="tagalog">tagalog</option>
+        <option value="malagasy">malagasy</option>
+        <option value="assamese">assamese</option>
+        <option value="tatar">tatar</option>
+        <option value="hawaiian">hawaiian</option>
+        <option value="lingala">lingala</option>
+        <option value="hausa">hausa</option>
+        <option value="bashkir">bashkir</option>
+        <option value="javanese">javanese</option>
+        <option value="sundanese">sundanese</option>
+        <option value="cantonese">cantonese</option>
+        <option value="burmese">burmese</option>
+        <option value="valencian">valencian</option>
+        <option value="flemish">flemish</option>
+        <option value="letzeburgesch">letzeburgesch</option>
+        <option value="pushto">pushto</option>
+        <option value="panjabi">panjabi</option>
+        <option value="moldavian">moldavian</option>
+        <option value="moldovan">moldovan</option>
+        <option value="sinhalese">sinhalese</option>
+        <option value="castilian">castilian</option>
+        <option value="mandarin">mandarin</option>
       </select>
     </label>
 
@@ -48,26 +154,22 @@
     </label>
 
     <label>Min Speakers:
-      <input type="number" name="min_speakers" value="1">
+      <input type="number" name="min_speakers" value="1" min="1" />
     </label>
 
     <label>Max Speakers:
-      <input type="number" name="max_speakers" value="8">
+      <input type="number" name="max_speakers" value="8" min="1" />
     </label>
 
     <label>Output Format:
       <select name="output_format">
+        <option value="markdown" selected>markdown</option>
         <option value="text">text</option>
-        <option value="markdown">markdown</option>
         <option value="srt">srt</option>
       </select>
     </label>
 
-    <label>API Key:
-      <input type="text" name="x_api_key" placeholder="Enter your API key" required>
-    </label>
-
-    <input type="hidden" name="initData" id="initData">
+    <input type="hidden" name="initData" id="initData" />
 
     <button type="submit">Upload</button>
     <div class="status" id="status"></div>
@@ -84,29 +186,66 @@
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        status.textContent = "🔄 Uploading...";
+        status.textContent = "🔄 Authorizing...";
+        status.innerHTML = ""; // Clear previous status and links
 
         const formData = new FormData(form);
-        const apiKey = formData.get("x_api_key");
-        formData.delete("x_api_key");
+        const initDataValue = formData.get("initData");
 
         try {
-          const authRes = await fetch("/webapp-auth", { method: "POST", body: formData });
+          // Get JWT token via initData
+          const authRes = await fetch("/auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ initData: initDataValue })
+          });
+
           if (!authRes.ok) {
             const err = await authRes.text();
-            status.textContent = "❌ Access denied: " + err;
+            status.textContent = "❌ Authorization failed: " + err;
             return;
           }
 
+          const { access_token } = await authRes.json();
+
+          status.textContent = "🔄 Uploading audio...";
+
+          // Remove initData before upload
+          formData.delete("initData");
+
+          // Always send speaker_labels=true
+          formData.set("speaker_labels", "true");
+
           const uploadRes = await fetch("/upload", {
             method: "POST",
-            headers: { "x-api-key": apiKey },
+            headers: { "Authorization": `Bearer ${access_token}` },
             body: formData
           });
 
           const result = await uploadRes.json();
+
           if (uploadRes.ok) {
             status.textContent = "✅ " + (result.message || "Upload successful!");
+
+            if (result.transcript) {
+              // Determine MIME type based on output format
+              let mimeType = "text/plain";
+              if (result.output_format === "markdown") mimeType = "text/markdown";
+              else if (result.output_format === "srt") mimeType = "application/x-subrip";
+
+              const blob = new Blob([result.transcript], { type: mimeType });
+              const url = URL.createObjectURL(blob);
+
+              const downloadLink = document.createElement("a");
+              downloadLink.href = url;
+              downloadLink.download = (result.filename || "transcript") + "." + (result.output_format || "txt");
+              downloadLink.textContent = "⬇️ Download transcript";
+              downloadLink.style.display = "block";
+              downloadLink.style.marginTop = "10px";
+
+              status.appendChild(downloadLink);
+            }
+
           } else {
             status.textContent = "❌ Error: " + (result.error || JSON.stringify(result));
           }

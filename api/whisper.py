@@ -1,4 +1,5 @@
 import requests
+import logging
 from config import (
     WHISPER_API_KEY,
     WHISPER_API_URL,
@@ -7,8 +8,11 @@ from config import (
     DEFAULT_MIN_SPEAKERS,
     DEFAULT_MAX_SPEAKERS,
     DEFAULT_SPEAKER_LABELS,
-    DEFAULT_TRANSLATE
+    DEFAULT_TRANSLATE,
+    ENV
 )
+
+logger = logging.getLogger(__name__)
 
 def transcribe_audio(
     file_path,
@@ -16,6 +20,7 @@ def transcribe_audio(
     prompt=None,
     speaker_labels=DEFAULT_SPEAKER_LABELS,
     translate=DEFAULT_TRANSLATE,
+    response_format="verbose_json",
     timestamp_granularities=DEFAULT_TIMESTAMP_GRANULARITIES,
     callback_url=None,
     min_speakers=DEFAULT_MIN_SPEAKERS,
@@ -27,7 +32,7 @@ def transcribe_audio(
 
     data = [
         ("language", language),
-        ("response_format", "verbose_json"),
+        ("response_format", response_format),
         ("speaker_labels", str(speaker_labels).lower()),
         ("translate", str(translate).lower())
     ]
@@ -44,11 +49,22 @@ def transcribe_audio(
         for granularity in timestamp_granularities:
             data.append(("timestamp_granularities[]", granularity))
 
-    with open(file_path, "rb") as f:
-        files = {"file": f}
-        response = requests.post(WHISPER_API_URL, headers=headers, files=files, data=data)
+    try:
+        with open(file_path, "rb") as f:
+            files = {"file": f}
+            response = requests.post(WHISPER_API_URL, headers=headers, files=files, data=data)
+            response.raise_for_status()
 
-    if response.status_code == 200:
+        if ENV == "dev":
+            logger.info(f"Whisper API response status: {response.status_code}")
+            logger.debug(f"Whisper API response body: {response.text}")
+
         return response.json()
-    else:
-        raise Exception(f"❌ Error {response.status_code}: {response.text}")
+
+    except requests.RequestException as e:
+        logger.error(f"Network or HTTP error while calling Whisper API: {e}")
+        raise Exception(f"Network or HTTP error: {e}")
+
+    except Exception as e:
+        logger.error(f"Unexpected error in transcribe_audio: {e}")
+        raise

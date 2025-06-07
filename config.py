@@ -8,13 +8,10 @@ load_dotenv(dotenv_path=".env.local")
 ENV = os.getenv("ENV", "dev").lower()
 
 # 🔐 Required API keys
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
 WHISPER_API_KEY = os.getenv("WHISPER_API_KEY")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL")
 
-# 🚨 Validate required keys
-if not INTERNAL_API_KEY:
-    raise RuntimeError("❌ INTERNAL_API_KEY is missing in environment variables.")
+# 🚨 Validate required keys presence
 if not WHISPER_API_KEY:
     raise RuntimeError("❌ WHISPER_API_KEY is missing in environment variables.")
 if not WHISPER_API_URL:
@@ -39,3 +36,8 @@ ALLOWED_USERNAMES = {
 
 # 🤖 Telegram bot token (optional)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+# 🔑 JWT settings
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "super-secret-key")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", 30))

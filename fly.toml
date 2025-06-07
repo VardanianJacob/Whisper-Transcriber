@@ -5,12 +5,12 @@ app = "whisperapi"
 primary_region = "otp"
 
 [build]
-# Можно указать dockerfile или builder, если понадобится:
+# Optional: specify dockerfile or builder if needed
 # dockerfile = "Dockerfile"
 
 [env]
-  # 🔧 Значения переменных можно переопределить через `fly secrets`
-  ENV = "dev"
+  # Environment variables can be overridden via `fly secrets`
+  ENV = "prod"
 
 [http_service]
   internal_port = 8080
