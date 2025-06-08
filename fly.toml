@@ -8,9 +8,17 @@ primary_region = "otp"
 # Optional: specify dockerfile or builder if needed
 # dockerfile = "Dockerfile"
 
-[env]
+
+
   # Environment variables can be overridden via `fly secrets`
+[env]
   ENV = "prod"
+  JWT_ALGORITHM = "HS256"
+  JWT_EXPIRES_MINUTES = "30"
+  DEFAULT_LANGUAGE = "english"
+  DEFAULT_OUTPUT_FORMAT = "markdown"
+  DEFAULT_MIN_SPEAKERS = "1"
+  DEFAULT_MAX_SPEAKERS = "8"
 
 [http_service]
   internal_port = 8080

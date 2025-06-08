@@ -28,8 +28,8 @@ def verify_telegram_init_data(init_data: str) -> dict:
     # Build data check string in alphabetical order
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
 
-    # Generate secret key and calculate HMAC SHA-256 hash
-    secret_key = hashlib.sha256(BOT_TOKEN.encode()).digest()
+    # ИСПРАВЛЕНО: Правильная генерация secret key согласно документации Telegram
+    secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
     calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
     # Securely compare calculated hash and received hash
