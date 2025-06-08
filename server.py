@@ -66,6 +66,23 @@ app = FastAPI(
     }
 )
 
+# --- Мидлвар для ограничения размера файла ---
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import PlainTextResponse
+
+class LimitUploadSize(BaseHTTPMiddleware):
+    def __init__(self, app, max_upload_size: int):
+        super().__init__(app)
+        self.max_upload_size = max_upload_size
+
+    async def dispatch(self, request, call_next):
+        content_length = request.headers.get('content-length')
+        if content_length and int(content_length) > self.max_upload_size:
+            return PlainTextResponse("File too large", status_code=413)
+        return await call_next(request)
+
+app.add_middleware(LimitUploadSize, max_upload_size=100_000_000)  # 100 MB
+
 # --- Custom OpenAPI schema for Bearer JWT in Swagger UI ---
 def custom_openapi():
     if app.openapi_schema:
