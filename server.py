@@ -8,6 +8,21 @@ import os
 import logging
 import io
 
+# === NEW: Импортируем SQLModel и настраиваем БД ===
+from sqlmodel import SQLModel, Field, create_engine, Session, select
+from datetime import datetime
+
+class Transcription(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    username: str
+    filename: str
+    output_format: str
+    transcript: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+engine = create_engine("sqlite:///transcriptions.db")
+SQLModel.metadata.create_all(engine)
+
 from config import (
     ENV,
     DEFAULT_LANGUAGE,
@@ -118,7 +133,23 @@ async def index():
     <html><body><h1>🌿 Whisper API running</h1></body></html>
     '''
 
-# Endpoint 1: Returns transcription JSON with formatted output
+# --- ⬇️ История транскрипций для пользователя (возвращает последние 10) ---
+@app.get("/history", tags=["Transcription"])
+async def get_history(username: str = Depends(get_current_username), limit: int = 10):
+    with Session(engine) as session:
+        results = session.exec(
+            select(Transcription).where(Transcription.username == username).order_by(Transcription.created_at.desc()).limit(limit)
+        ).all()
+    return [
+        {
+            "filename": t.filename,
+            "created_at": t.created_at,
+            "output_format": t.output_format,
+            "transcript": t.transcript
+        } for t in results
+    ]
+
+# --- Основной endpoint: сохраняет транскрипт в БД ---
 @app.post("/upload", tags=["Transcription"])
 async def upload_audio(
     file: UploadFile = File(...),
@@ -164,6 +195,17 @@ async def upload_audio(
         else:
             content = result.get("text", "") or "No plain text available"
 
+        # ⬇️ Сохраняем результат в базу
+        with Session(engine) as session:
+            tr = Transcription(
+                username=username,
+                filename=file.filename,
+                output_format=output_format,
+                transcript=content
+            )
+            session.add(tr)
+            session.commit()
+
         return {
             "message": "✅ Transcription complete",
             "filename": file.filename,
@@ -178,7 +220,7 @@ async def upload_audio(
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-# Endpoint 2: Returns transcription as downloadable Markdown file
+# Endpoint 2: Returns transcription as downloadable Markdown file (тоже сохраняет)
 @app.post("/upload/file", tags=["Transcription"])
 async def upload_audio_file(
     file: UploadFile = File(...),
@@ -219,6 +261,17 @@ async def upload_audio_file(
         markdown = format_verbose_json_to_markdown(result)
         file_like = io.BytesIO(markdown.encode("utf-8"))
         file_like.seek(0)
+
+        # ⬇️ Сохраняем результат в базу
+        with Session(engine) as session:
+            tr = Transcription(
+                username=username,
+                filename=file.filename,
+                output_format="markdown",
+                transcript=markdown
+            )
+            session.add(tr)
+            session.commit()
 
         return StreamingResponse(
             file_like,
