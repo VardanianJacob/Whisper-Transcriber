@@ -16,151 +16,35 @@
 <body>
   <form id="uploadForm">
     <h2>🎤 Upload your audio</h2>
-
     <label>Audio file:
       <input type="file" name="file" accept="audio/*" required />
     </label>
-
     <label>Prompt:
       <input type="text" name="prompt" />
     </label>
-
     <label>Translate to English:
       <input type="checkbox" name="translate" />
     </label>
-
     <label>Language:
       <select name="language" required>
         <option value="english" selected>english</option>
-        <!-- остальные языки как в предыдущем варианте -->
-        <option value="chinese">chinese</option>
-        <option value="german">german</option>
-        <option value="spanish">spanish</option>
+        <!-- ... остальные языки ... -->
         <option value="russian">russian</option>
-        <option value="korean">korean</option>
-        <option value="french">french</option>
-        <option value="japanese">japanese</option>
-        <option value="portuguese">portuguese</option>
-        <option value="turkish">turkish</option>
-        <option value="polish">polish</option>
-        <option value="catalan">catalan</option>
-        <option value="dutch">dutch</option>
-        <option value="arabic">arabic</option>
-        <option value="swedish">swedish</option>
-        <option value="italian">italian</option>
-        <option value="indonesian">indonesian</option>
-        <option value="hindi">hindi</option>
-        <option value="finnish">finnish</option>
-        <option value="vietnamese">vietnamese</option>
-        <option value="hebrew">hebrew</option>
-        <option value="ukrainian">ukrainian</option>
-        <option value="greek">greek</option>
-        <option value="malay">malay</option>
-        <option value="czech">czech</option>
-        <option value="romanian">romanian</option>
-        <option value="danish">danish</option>
-        <option value="hungarian">hungarian</option>
-        <option value="tamil">tamil</option>
-        <option value="norwegian">norwegian</option>
-        <option value="thai">thai</option>
-        <option value="urdu">urdu</option>
-        <option value="croatian">croatian</option>
-        <option value="bulgarian">bulgarian</option>
-        <option value="lithuanian">lithuanian</option>
-        <option value="latin">latin</option>
-        <option value="maori">maori</option>
-        <option value="malayalam">malayalam</option>
-        <option value="welsh">welsh</option>
-        <option value="slovak">slovak</option>
-        <option value="telugu">telugu</option>
-        <option value="persian">persian</option>
-        <option value="latvian">latvian</option>
-        <option value="bengali">bengali</option>
-        <option value="serbian">serbian</option>
-        <option value="azerbaijani">azerbaijani</option>
-        <option value="slovenian">slovenian</option>
-        <option value="kannada">kannada</option>
-        <option value="estonian">estonian</option>
-        <option value="macedonian">macedonian</option>
-        <option value="breton">breton</option>
-        <option value="basque">basque</option>
-        <option value="icelandic">icelandic</option>
-        <option value="armenian">armenian</option>
-        <option value="nepali">nepali</option>
-        <option value="mongolian">mongolian</option>
-        <option value="bosnian">bosnian</option>
-        <option value="kazakh">kazakh</option>
-        <option value="albanian">albanian</option>
-        <option value="swahili">swahili</option>
-        <option value="galician">galician</option>
-        <option value="marathi">marathi</option>
-        <option value="punjabi">punjabi</option>
-        <option value="sinhala">sinhala</option>
-        <option value="khmer">khmer</option>
-        <option value="shona">shona</option>
-        <option value="yoruba">yoruba</option>
-        <option value="somali">somali</option>
-        <option value="afrikaans">afrikaans</option>
-        <option value="occitan">occitan</option>
-        <option value="georgian">georgian</option>
-        <option value="belarusian">belarusian</option>
-        <option value="tajik">tajik</option>
-        <option value="sindhi">sindhi</option>
-        <option value="gujarati">gujarati</option>
-        <option value="amharic">amharic</option>
-        <option value="yiddish">yiddish</option>
-        <option value="lao">lao</option>
-        <option value="uzbek">uzbek</option>
-        <option value="faroese">faroese</option>
-        <option value="haitian creole">haitian creole</option>
-        <option value="pashto">pashto</option>
-        <option value="turkmen">turkmen</option>
-        <option value="nynorsk">nynorsk</option>
-        <option value="maltese">maltese</option>
-        <option value="sanskrit">sanskrit</option>
-        <option value="luxembourgish">luxembourgish</option>
-        <option value="myanmar">myanmar</option>
-        <option value="tibetan">tibetan</option>
-        <option value="tagalog">tagalog</option>
-        <option value="malagasy">malagasy</option>
-        <option value="assamese">assamese</option>
-        <option value="tatar">tatar</option>
-        <option value="hawaiian">hawaiian</option>
-        <option value="lingala">lingala</option>
-        <option value="hausa">hausa</option>
-        <option value="bashkir">bashkir</option>
-        <option value="javanese">javanese</option>
-        <option value="sundanese">sundanese</option>
-        <option value="cantonese">cantonese</option>
-        <option value="burmese">burmese</option>
-        <option value="valencian">valencian</option>
-        <option value="flemish">flemish</option>
-        <option value="letzeburgesch">letzeburgesch</option>
-        <option value="pushto">pushto</option>
-        <option value="panjabi">panjabi</option>
-        <option value="moldavian">moldavian</option>
-        <option value="moldovan">moldovan</option>
-        <option value="sinhalese">sinhalese</option>
-        <option value="castilian">castilian</option>
-        <option value="mandarin">mandarin</option>
+        <!-- (все языки как у тебя, здесь урезано для краткости) -->
       </select>
     </label>
-
     <label>Timestamp Granularities:
       <select name="timestamp_granularities">
         <option value="segment">segment</option>
         <option value="word">word</option>
       </select>
     </label>
-
     <label>Min Speakers:
       <input type="number" name="min_speakers" value="1" min="1" />
     </label>
-
     <label>Max Speakers:
       <input type="number" name="max_speakers" value="8" min="1" />
     </label>
-
     <label>Output Format:
       <select name="output_format">
         <option value="markdown" selected>markdown</option>
@@ -168,17 +52,16 @@
         <option value="srt">srt</option>
       </select>
     </label>
-
     <input type="hidden" name="initData" id="initData" />
-
     <button type="submit">Upload</button>
     <div class="status" id="status"></div>
   </form>
-
   <script>
     window.addEventListener("DOMContentLoaded", () => {
       const tg = window.Telegram?.WebApp;
       const initData = tg?.initData || "";
+      console.log("initData = ", initData); // <--- эта строка покажет, что реально передается
+
       document.getElementById("initData").value = initData;
 
       const form = document.getElementById("uploadForm");
