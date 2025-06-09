@@ -37,6 +37,10 @@ class Transcription(SQLModel, table=True):
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
+    # Fix postgres:// scheme to postgresql:// for SQLAlchemy 2.0+ compatibility
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
     # Production - PostgreSQL from Fly.io
     engine = create_engine(DATABASE_URL, echo=False)
     logger = logging.getLogger(__name__)
