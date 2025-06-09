@@ -1,0 +1,20 @@
+# 📦 Include base dependencies
+-r base.txt
+
+# 🚀 Production Server
+gunicorn==23.0.0
+
+# 📊 Monitoring & Metrics
+prometheus-client==0.21.1
+
+# 📝 Structured Logging
+structlog==24.5.0
+
+# 🛡️ Security Headers
+secure==0.3.0
+
+# 📈 Performance
+orjson==3.10.17
+
+# 🔒 Additional Security
+cryptography==43.0.3

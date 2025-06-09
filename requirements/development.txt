@@ -1,0 +1,35 @@
+# 📦 Include base dependencies
+-r base.txt
+
+# 🧪 Testing Framework
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+
+# 🌐 HTTP Testing
+httpx==0.28.1
+
+# 🔧 Code Quality
+black==24.10.0
+flake8==7.1.1
+isort==5.13.2
+mypy==1.14.0
+
+# 🔍 Code Analysis
+bandit==1.8.0
+safety==3.2.11
+
+# 🎯 Pre-commit Hooks
+pre-commit==4.0.1
+
+# 📊 Coverage Reporting
+coverage==7.6.9
+
+# 🐛 Debugging
+ipdb==0.13.13
+rich==13.9.4
+
+# 📝 Documentation
+mkdocs==1.6.1
+mkdocs-material==9.5.47

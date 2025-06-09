@@ -1,25 +1,22 @@
 # 🌐 fly.toml — Fly.io config for WhisperAPI
-# 📅 Generated: 2025-06-06
-
 app = "whisperapi"
 primary_region = "otp"
+kill_signal = "SIGINT"
+kill_timeout = "5s"
 
 [build]
-# Optional: specify dockerfile or builder if needed
-# dockerfile = "Dockerfile"
+  dockerfile = "Dockerfile"
 
-
-
-  # Environment variables can be overridden via `fly secrets`
+# 🌍 Environment variables (non-sensitive only)
 [env]
-  ENV = "prod"
-  JWT_ALGORITHM = "HS256"
-  JWT_EXPIRES_MINUTES = "30"
   DEFAULT_LANGUAGE = "english"
   DEFAULT_OUTPUT_FORMAT = "markdown"
   DEFAULT_MIN_SPEAKERS = "1"
   DEFAULT_MAX_SPEAKERS = "8"
+  JWT_ALGORITHM = "HS256"
+  JWT_EXPIRES_MINUTES = "30"
 
+# 🌐 HTTP service
 [http_service]
   internal_port = 8080
   force_https = true
@@ -28,6 +25,16 @@ primary_region = "otp"
   min_machines_running = 0
   processes = ["app"]
 
+  # Health check
+  [http_service.checks]
+    [http_service.checks.health]
+      grace_period = "10s"
+      interval = "30s"
+      method = "GET"
+      path = "/"
+      timeout = "5s"
+
+# 🖥️ Resources
 [[vm]]
   memory = "1gb"
   cpu_kind = "shared"

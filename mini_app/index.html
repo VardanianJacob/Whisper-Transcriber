@@ -3,342 +3,774 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upload Audio</title>
-  <!-- Подключаем официальный Telegram WebApp SDK -->
+  <title>Audio Transcription</title>
+  <!-- Official Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f6f6f6; }
-    form, .result-container, .history-container { background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    label { display: block; margin-top: 15px; }
-    input[type="text"], input[type="file"], select, input[type="number"] { width: 100%; padding: 8px; margin-top: 5px; }
-    button { padding: 10px 20px; margin-top: 20px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button:hover { background: #0077b3; }
-    .status { margin-top: 20px; }
-    .copy-btn { margin-left: 10px; background: #c2e77e; color: #222; }
-    .back-btn { background: #eee; color: #333; margin-top: 15px; }
-    .history-btn { margin-left: 8px; background: #ededed; color: #333; }
-    textarea.transcript { width: 100%; min-height: 180px; margin-top: 12px; font-size: 1em; padding: 12px; background: #fafafa; border-radius: 8px; border: 1px solid #ddd; resize: vertical;}
-    .success { color: #009900; font-size: 1.15em; margin-bottom: 8px; }
-    .error { color: #c00; font-size: 1.12em; margin-bottom: 8px; }
-    .history-list { margin-top: 15px; padding-left: 0; }
-    .history-list li { list-style: none; margin-bottom: 12px; }
-    .history-link { color: #0088cc; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1em; }
-    .history-link:hover { color: #005b90; }
-    .history-meta { font-size: 0.93em; color: #555; margin-bottom: 2px; }
-    .debug-info { background: #fffacd; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 0.9em; }
+    :root {
+      --primary-color: #0088cc;
+      --primary-hover: #0077b3;
+      --success-color: #009900;
+      --error-color: #cc0000;
+      --background-color: #f6f6f6;
+      --card-background: #ffffff;
+      --text-color: #333333;
+      --border-color: #dddddd;
+      --secondary-bg: #ededed;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      background: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .container {
+      background: var(--card-background);
+      padding: 24px;
+      border-radius: 12px;
+      max-width: 600px;
+      margin: 0 auto;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      margin: 0 0 24px 0;
+      color: var(--text-color);
+      font-size: 1.5em;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    input[type="text"],
+    input[type="file"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s ease;
+    }
+
+    input[type="file"] {
+      padding: 8px;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      margin: 8px 8px 8px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--secondary-bg);
+      color: var(--text-color);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #dadada;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: #218838;
+    }
+
+    .status {
+      margin: 20px 0;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    .status.success {
+      background: #d4edda;
+      color: var(--success-color);
+      border: 1px solid #c3e6cb;
+    }
+
+    .status.error {
+      background: #f8d7da;
+      color: var(--error-color);
+      border: 1px solid #f5c6cb;
+    }
+
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+
+    .transcript-area {
+      width: 100%;
+      min-height: 200px;
+      margin: 16px 0;
+      padding: 16px;
+      background: #fafafa;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      resize: vertical;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .history-list {
+      margin: 20px 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .history-item {
+      margin-bottom: 16px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .history-meta {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .debug-info {
+      background: #fff3cd;
+      color: #856404;
+      padding: 16px;
+      margin: 16px 0;
+      border-radius: 8px;
+      border: 1px solid #ffeaa7;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .file-info {
+      margin-top: 8px;
+      padding: 8px;
+      background: #e3f2fd;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #1565c0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 16px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary-color);
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      .container {
+        padding: 16px;
+      }
+
+      .btn {
+        width: 100%;
+        margin-bottom: 8px;
+        justify-content: center;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="debugInfo" class="debug-info" style="display: none;"></div>
+  <div id="debugInfo" class="debug-info hidden"></div>
 
-  <form id="uploadForm">
-    <h2>🎤 Upload your audio</h2>
-    <label>Audio file:
-      <input type="file" name="file" accept="audio/*" required />
-    </label>
-    <label>Prompt:
-      <input type="text" name="prompt" />
-    </label>
-    <label>Translate to English:
-      <input type="checkbox" name="translate" />
-    </label>
-    <label>Language:
-      <select name="language" required>
-        <option value="english" selected>english</option>
-        <option value="russian">russian</option>
-        <option value="spanish">spanish</option>
-        <option value="french">french</option>
-        <option value="german">german</option>
-        <option value="italian">italian</option>
-        <option value="portuguese">portuguese</option>
-        <option value="chinese">chinese</option>
-        <option value="japanese">japanese</option>
-        <option value="korean">korean</option>
-      </select>
-    </label>
-    <label>Timestamp Granularities:
-      <select name="timestamp_granularities">
-        <option value="segment">segment</option>
-        <option value="word">word</option>
-      </select>
-    </label>
-    <label>Min Speakers:
-      <input type="number" name="min_speakers" value="1" min="1" />
-    </label>
-    <label>Max Speakers:
-      <input type="number" name="max_speakers" value="8" min="1" />
-    </label>
-    <label>Output Format:
-      <select name="output_format">
-        <option value="markdown" selected>markdown</option>
-        <option value="text">text</option>
-        <option value="srt">srt</option>
-      </select>
-    </label>
-    <input type="hidden" name="initData" id="initData" />
-    <button type="submit">Upload</button>
-    <button type="button" id="showHistoryBtn" class="history-btn">Мои транскрипции</button>
-    <button type="button" id="debugBtn" class="history-btn">Debug Info</button>
-    <div class="status" id="status"></div>
-  </form>
+  <div class="container">
+    <form id="uploadForm">
+      <h2>🎤 Audio Transcription</h2>
 
-  <div id="resultContainer" class="result-container" style="display:none"></div>
-  <div id="historyContainer" class="history-container" style="display:none"></div>
+      <div class="form-group">
+        <label for="audioFile">Audio File:</label>
+        <input type="file" id="audioFile" name="file" accept="audio/*,video/*" required />
+        <div id="fileInfo" class="file-info hidden"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="prompt">Prompt (optional):</label>
+        <input type="text" id="prompt" name="prompt" placeholder="Provide context to improve accuracy..." />
+      </div>
+
+      <div class="form-group">
+        <label>Options:</label>
+        <div class="checkbox-group">
+          <input type="checkbox" id="translate" name="translate" />
+          <label for="translate">Translate to English</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="language">Language:</label>
+        <select id="language" name="language" required>
+          <option value="english" selected>English</option>
+          <option value="russian">Russian</option>
+          <option value="spanish">Spanish</option>
+          <option value="french">French</option>
+          <option value="german">German</option>
+          <option value="italian">Italian</option>
+          <option value="portuguese">Portuguese</option>
+          <option value="chinese">Chinese</option>
+          <option value="japanese">Japanese</option>
+          <option value="korean">Korean</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="timestampGranularities">Timestamp Detail:</label>
+        <select id="timestampGranularities" name="timestamp_granularities">
+          <option value="segment" selected>Segment Level</option>
+          <option value="word">Word Level</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="minSpeakers">Min Speakers:</label>
+        <input type="number" id="minSpeakers" name="min_speakers" value="1" min="1" max="20" />
+      </div>
+
+      <div class="form-group">
+        <label for="maxSpeakers">Max Speakers:</label>
+        <input type="number" id="maxSpeakers" name="max_speakers" value="8" min="1" max="20" />
+      </div>
+
+      <div class="form-group">
+        <label for="outputFormat">Output Format:</label>
+        <select id="outputFormat" name="output_format">
+          <option value="markdown" selected>Markdown</option>
+          <option value="text">Plain Text</option>
+          <option value="srt">SRT Subtitles</option>
+        </select>
+      </div>
+
+      <input type="hidden" name="initData" id="initData" />
+
+      <div class="progress-bar hidden" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        <span id="submitText">Upload & Transcribe</span>
+      </button>
+
+      <button type="button" id="showHistoryBtn" class="btn btn-secondary">
+        📋 My Transcriptions
+      </button>
+
+      <button type="button" id="debugBtn" class="btn btn-secondary">
+        🔧 Debug Info
+      </button>
+
+      <div class="status hidden" id="status"></div>
+    </form>
+
+    <div id="resultContainer" class="container hidden fade-in"></div>
+    <div id="historyContainer" class="container hidden fade-in"></div>
+  </div>
 
   <script>
-    // Ждем загрузки страницы и инициализации Telegram WebApp
-    window.addEventListener("DOMContentLoaded", () => {
-      console.log("DOM loaded, initializing Telegram WebApp...");
+    // Constants
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    const SUPPORTED_TYPES = ['audio/', 'video/'];
 
-      // Проверяем наличие Telegram WebApp
-      if (!window.Telegram || !window.Telegram.WebApp) {
-        console.error("Telegram WebApp not available");
-        document.getElementById("status").innerHTML = '<span class="error">❌ Telegram WebApp not available. Please open this app from Telegram.</span>';
-        return;
+    // Global variables
+    let tg = null;
+    let currentView = 'upload';
+
+    // Utility functions
+    const $ = (id) => document.getElementById(id);
+    const show = (el) => el.classList.remove('hidden');
+    const hide = (el) => el.classList.add('hidden');
+    const formatFileSize = (bytes) => {
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      if (bytes === 0) return '0 Bytes';
+      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+      return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    };
+
+    // Modern clipboard API with fallback
+    async function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (err) {
+          console.warn('Clipboard API failed:', err);
+        }
       }
 
-      const tg = window.Telegram.WebApp;
+      // Fallback to deprecated method
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return success;
+      } catch (err) {
+        console.error('Copy fallback failed:', err);
+        return false;
+      }
+    }
 
-      // Инициализируем WebApp
-      tg.ready();
-      tg.expand();
+    // Status management
+    function showStatus(message, type = 'info', duration = 0) {
+      const status = $('status');
+      status.className = `status ${type}`;
+      status.innerHTML = message;
+      show(status);
 
-      // Настраиваем цвета под тему Telegram
-      if (tg.colorScheme === 'dark') {
-        document.body.style.background = tg.themeParams.bg_color || '#1a1a1a';
+      if (duration > 0) {
+        setTimeout(() => hide(status), duration);
+      }
+    }
+
+    function showLoading(message = 'Processing...') {
+      showStatus(`<div class="loading"><div class="spinner"></div>${message}</div>`, 'info');
+    }
+
+    // File validation
+    function validateFile(file) {
+      if (!file) {
+        throw new Error('No file selected');
       }
 
-      console.log("Telegram WebApp initialized");
-      console.log("initData:", tg.initData);
-      console.log("initDataUnsafe:", tg.initDataUnsafe);
+      if (file.size === 0) {
+        throw new Error('File is empty');
+      }
 
-      // Устанавливаем initData в скрытое поле
-      const initData = tg.initData || "";
-      document.getElementById("initData").value = initData;
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error(`File too large (${formatFileSize(file.size)}). Maximum size is ${formatFileSize(MAX_FILE_SIZE)}`);
+      }
 
-      // Получаем элементы DOM
-      const form = document.getElementById("uploadForm");
-      const status = document.getElementById("status");
-      const resultContainer = document.getElementById("resultContainer");
-      const historyContainer = document.getElementById("historyContainer");
-      const showHistoryBtn = document.getElementById("showHistoryBtn");
-      const debugBtn = document.getElementById("debugBtn");
-      const debugInfo = document.getElementById("debugInfo");
+      const isSupported = SUPPORTED_TYPES.some(type => file.type.startsWith(type));
+      if (!isSupported) {
+        throw new Error(`Unsupported file type: ${file.type || 'unknown'}. Please upload an audio or video file.`);
+      }
 
-      // Debug функция
-      debugBtn.onclick = () => {
-        const isVisible = debugInfo.style.display !== "none";
-        if (isVisible) {
-          debugInfo.style.display = "none";
-          debugBtn.textContent = "Debug Info";
+      return true;
+    }
+
+    // API calls with better error handling
+    async function apiCall(url, options = {}) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout - please try again');
+        }
+        throw error;
+      }
+    }
+
+    // Authentication
+    async function authenticate() {
+      const initData = $('initData').value;
+      if (!initData) {
+        throw new Error('No authorization data available. Please restart from Telegram.');
+      }
+
+      const response = await apiCall('/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ initData })
+      });
+
+      const result = await response.json();
+      return result.access_token;
+    }
+
+    // View management
+    function showView(viewName) {
+      const views = ['uploadForm', 'resultContainer', 'historyContainer'];
+      views.forEach(view => {
+        const el = $(view);
+        if (view === viewName || (viewName === 'upload' && view === 'uploadForm')) {
+          show(el);
         } else {
-          debugInfo.innerHTML = `
-            <strong>Debug Information:</strong><br>
-            initData length: ${initData.length}<br>
-            initData: ${initData ? initData.substring(0, 100) + "..." : "empty"}<br>
-            User ID: ${tg.initDataUnsafe?.user?.id || "unknown"}<br>
-            Username: ${tg.initDataUnsafe?.user?.username || "unknown"}<br>
-            WebApp version: ${tg.version}<br>
-            Platform: ${tg.platform}
-          `;
-          debugInfo.style.display = "block";
-          debugBtn.textContent = "Hide Debug";
+          hide(el);
+        }
+      });
+      currentView = viewName;
+    }
+
+    function showResult(transcript, filename, outputFormat, message) {
+      const container = $('resultContainer');
+      container.innerHTML = `
+        <h2>✅ Transcription Complete</h2>
+        <div class="status success">${message || 'Your audio has been successfully transcribed.'}</div>
+        <div class="form-group">
+          <label>File: ${filename} (${outputFormat})</label>
+          <textarea class="transcript-area" readonly id="transcriptText">${transcript}</textarea>
+        </div>
+        <button type="button" class="btn btn-success" id="copyBtn">
+          📋 Copy Transcript
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="showView('upload')">
+          ⬅️ New Transcription
+        </button>
+      `;
+
+      $('copyBtn').onclick = async () => {
+        const success = await copyToClipboard(transcript);
+        const btn = $('copyBtn');
+        if (success) {
+          btn.innerHTML = '✅ Copied!';
+          btn.classList.add('btn-success');
+          setTimeout(() => {
+            btn.innerHTML = '📋 Copy Transcript';
+            btn.classList.remove('btn-success');
+          }, 2000);
+        } else {
+          showStatus('Copy failed. Please select the text manually.', 'error', 3000);
         }
       };
 
-      function showUploadForm() {
-        form.style.display = "";
-        resultContainer.style.display = "none";
-        historyContainer.style.display = "none";
-        status.textContent = "";
+      showView('resultContainer');
+    }
+
+    async function showHistory() {
+      showLoading('Loading your transcriptions...');
+
+      try {
+        const token = await authenticate();
+        const response = await apiCall('/history', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const history = await response.json();
+        const container = $('historyContainer');
+
+        if (!Array.isArray(history) || history.length === 0) {
+          container.innerHTML = `
+            <h2>📋 My Transcriptions</h2>
+            <div class="status info">No transcriptions found. Upload your first audio file!</div>
+            <button type="button" class="btn btn-primary" onclick="showView('upload')">
+              🎤 Upload Audio
+            </button>
+          `;
+        } else {
+          let historyHTML = '<h2>📋 My Transcriptions</h2><ul class="history-list">';
+
+          history.forEach((item, index) => {
+            const date = new Date(item.created_at).toLocaleString();
+            historyHTML += `
+              <li class="history-item">
+                <div class="history-meta">${date} • ${item.filename} • ${item.output_format}</div>
+                <button type="button" class="btn btn-secondary" onclick="showHistoryItem(${index})">
+                  👁️ View Transcript
+                </button>
+              </li>
+            `;
+          });
+
+          historyHTML += `
+            </ul>
+            <button type="button" class="btn btn-secondary" onclick="showView('upload')">
+              ⬅️ Back to Upload
+            </button>
+          `;
+
+          container.innerHTML = historyHTML;
+
+          // Store history for access
+          window.historyData = history;
+        }
+
+        showView('historyContainer');
+        hide($('status'));
+
+      } catch (error) {
+        showStatus(`❌ Failed to load history: ${error.message}`, 'error');
+      }
+    }
+
+    function showHistoryItem(index) {
+      const item = window.historyData[index];
+      const date = new Date(item.created_at).toLocaleString();
+      showResult(item.transcript, item.filename, item.output_format, `Transcription from ${date}`);
+    }
+
+    // File input handler
+    $('audioFile').onchange = function(e) {
+      const file = e.target.files[0];
+      const fileInfo = $('fileInfo');
+
+      if (!file) {
+        hide(fileInfo);
+        return;
       }
 
-      function showResult(transcript, filename, output_format, message) {
-        form.style.display = "none";
-        historyContainer.style.display = "none";
-        resultContainer.innerHTML = "";
-
-        const msg = document.createElement("div");
-        msg.className = "success";
-        msg.innerHTML = "✅✅ " + (message || "Transcription complete");
-        resultContainer.appendChild(msg);
-
-        const textarea = document.createElement("textarea");
-        textarea.className = "transcript";
-        textarea.readOnly = true;
-        textarea.value = transcript;
-        resultContainer.appendChild(textarea);
-
-        // Copy button
-        const copyBtn = document.createElement("button");
-        copyBtn.textContent = "📋 Copy transcript";
-        copyBtn.className = "copy-btn";
-        copyBtn.onclick = () => {
-          textarea.select();
-          document.execCommand('copy');
-          copyBtn.textContent = "✅ Copied!";
-          setTimeout(() => copyBtn.textContent = "📋 Copy transcript", 1500);
-        };
-        resultContainer.appendChild(copyBtn);
-
-        // Back button
-        const backBtn = document.createElement("button");
-        backBtn.textContent = "⬅️ Back to upload";
-        backBtn.className = "back-btn";
-        backBtn.onclick = showUploadForm;
-        resultContainer.appendChild(backBtn);
-
-        resultContainer.style.display = "";
+      try {
+        validateFile(file);
+        fileInfo.innerHTML = `
+          📁 ${file.name}<br>
+          📊 ${formatFileSize(file.size)}<br>
+          🎵 ${file.type || 'Unknown type'}
+        `;
+        fileInfo.className = 'file-info';
+        show(fileInfo);
+      } catch (error) {
+        fileInfo.innerHTML = `❌ ${error.message}`;
+        fileInfo.className = 'file-info error';
+        show(fileInfo);
       }
+    };
 
-      async function showHistory() {
-        form.style.display = "none";
-        resultContainer.style.display = "none";
-        historyContainer.innerHTML = '<div style="font-size:1.1em; font-weight:600;">Мои транскрипции</div>';
+    // Debug functionality
+    $('debugBtn').onclick = () => {
+      const debugInfo = $('debugInfo');
+      const isVisible = !debugInfo.classList.contains('hidden');
 
-        // 1. Получаем JWT токен через initData
-        const initDataValue = document.getElementById("initData").value;
-
-        if (!initDataValue) {
-          historyContainer.innerHTML += '<div class="error">❌ No authorization data available. Please restart the app from Telegram.</div>';
-          historyContainer.style.display = "";
-          return;
-        }
-
-        let access_token = null;
-        try {
-          const authRes = await fetch("/auth", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ initData: initDataValue })
-          });
-          if (!authRes.ok) {
-            const err = await authRes.text();
-            historyContainer.innerHTML += `<div class="error">❌ Authorization failed: ${err}</div>`;
-            historyContainer.style.display = "";
-            return;
-          }
-          access_token = (await authRes.json()).access_token;
-        } catch (e) {
-          historyContainer.innerHTML += `<div class="error">❌ Auth error: ${e.message}</div>`;
-          historyContainer.style.display = "";
-          return;
-        }
-
-        // 2. Получаем историю транскрипций
-        try {
-          const historyRes = await fetch("/history", {
-            headers: { "Authorization": `Bearer ${access_token}` }
-          });
-          const list = await historyRes.json();
-          if (!Array.isArray(list) || list.length === 0) {
-            historyContainer.innerHTML += '<div style="margin-top:18px;">Нет транскрипций за последнее время.</div>';
-          } else {
-            const ul = document.createElement("ul");
-            ul.className = "history-list";
-            list.forEach((t, i) => {
-              const li = document.createElement("li");
-              const meta = document.createElement("div");
-              meta.className = "history-meta";
-              meta.textContent = `${t.created_at ? new Date(t.created_at).toLocaleString() : ""} • ${t.filename} • ${t.output_format}`;
-              li.appendChild(meta);
-
-              const link = document.createElement("button");
-              link.textContent = "Показать транскрипцию";
-              link.className = "history-link";
-              link.onclick = () => showResult(t.transcript, t.filename, t.output_format, `Транскрипция от ${meta.textContent}`);
-              li.appendChild(link);
-
-              ul.appendChild(li);
-            });
-            historyContainer.appendChild(ul);
-          }
-        } catch (e) {
-          historyContainer.innerHTML += `<div class="error">❌ Error loading history: ${e.message}</div>`;
-        }
-
-        // Back button
-        const backBtn = document.createElement("button");
-        backBtn.textContent = "⬅️ Back to upload";
-        backBtn.className = "back-btn";
-        backBtn.onclick = showUploadForm;
-        historyContainer.appendChild(backBtn);
-
-        historyContainer.style.display = "";
-      }
-
-      showHistoryBtn.onclick = showHistory;
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        status.innerHTML = "🔄 Authorizing...";
-
-        const formData = new FormData(form);
-        const initDataValue = formData.get("initData");
-
-        if (!initDataValue) {
-          status.innerHTML = '<span class="error">❌ No authorization data. Please restart from Telegram.</span>';
-          return;
-        }
-
-        try {
-          // Get JWT token via initData
-          const authRes = await fetch("/auth", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ initData: initDataValue })
-          });
-
-          if (!authRes.ok) {
-            const err = await authRes.text();
-            status.innerHTML = '<span class="error">❌ Authorization failed: ' + err + '</span>';
-            return;
-          }
-
-          const { access_token } = await authRes.json();
-
-          status.textContent = "🔄 Uploading audio...";
-
-          // Remove initData before upload
-          formData.delete("initData");
-
-          // Always send speaker_labels=true
-          formData.set("speaker_labels", "true");
-
-          const uploadRes = await fetch("/upload", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${access_token}` },
-            body: formData
-          });
-
-          if (uploadRes.status === 413) {
-            status.innerHTML = '<span class="error">❌ File too large. Please upload a smaller file (limit: 100 MB)</span>';
-            return;
-          }
-
-          const result = await uploadRes.json();
-
-          if (uploadRes.ok) {
-            if (result.transcript) {
-              showResult(result.transcript, result.filename, result.output_format, result.message);
-            } else {
-              status.innerHTML = '<span class="success">✅ ' + (result.message || "Upload successful!") + '</span>';
-            }
-          } else {
-            status.innerHTML = '<span class="error">❌ Error: ' + (result.error || JSON.stringify(result)) + '</span>';
-          }
-
-        } catch (err) {
-          status.innerHTML = '<span class="error">❌ Exception: ' + err.message + '</span>';
-        }
-      });
-
-      // Показываем информацию о готовности
-      if (initData) {
-        status.innerHTML = '<span style="color: #009900;">✅ Ready to use</span>';
+      if (isVisible) {
+        hide(debugInfo);
+        $('debugBtn').innerHTML = '🔧 Debug Info';
       } else {
-        status.innerHTML = '<span class="error">⚠️ No Telegram data found. Make sure to open from Telegram bot.</span>';
+        const initData = $('initData').value;
+        debugInfo.innerHTML = `
+          <strong>Debug Information:</strong><br>
+          <strong>initData length:</strong> ${initData.length}<br>
+          <strong>initData:</strong> ${initData.substring(0, 100)}${initData.length > 100 ? '...' : ''}<br>
+          <strong>User ID:</strong> ${tg?.initDataUnsafe?.user?.id || 'unknown'}<br>
+          <strong>Username:</strong> ${tg?.initDataUnsafe?.user?.username || 'unknown'}<br>
+          <strong>WebApp version:</strong> ${tg?.version || 'unknown'}<br>
+          <strong>Platform:</strong> ${tg?.platform || 'unknown'}<br>
+          <strong>Color scheme:</strong> ${tg?.colorScheme || 'unknown'}
+        `;
+        show(debugInfo);
+        $('debugBtn').innerHTML = '🔧 Hide Debug';
       }
+    };
+
+    // History button
+    $('showHistoryBtn').onclick = showHistory;
+
+    // Form submission
+    $('uploadForm').onsubmit = async (e) => {
+      e.preventDefault();
+
+      const submitBtn = $('submitBtn');
+      const submitText = $('submitText');
+      const progressBar = $('progressBar');
+      const progressFill = $('progressFill');
+
+      try {
+        // Validate form
+        const fileInput = $('audioFile');
+        const file = fileInput.files[0];
+        validateFile(file);
+
+        // Disable form
+        submitBtn.disabled = true;
+        show(progressBar);
+
+        // Step 1: Authentication
+        submitText.textContent = 'Authenticating...';
+        progressFill.style.width = '20%';
+
+        const token = await authenticate();
+
+        // Step 2: Prepare upload
+        submitText.textContent = 'Preparing upload...';
+        progressFill.style.width = '40%';
+
+        const formData = new FormData(e.target);
+        formData.delete('initData');
+        formData.set('speaker_labels', 'true');
+
+        // Step 3: Upload
+        submitText.textContent = 'Uploading & transcribing...';
+        progressFill.style.width = '60%';
+
+        const response = await apiCall('/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        progressFill.style.width = '100%';
+
+        const result = await response.json();
+
+        if (result.transcript) {
+          showResult(result.transcript, result.filename, result.output_format, result.message);
+        } else {
+          showStatus(`✅ ${result.message || 'Upload successful!'}`, 'success');
+        }
+
+      } catch (error) {
+        showStatus(`❌ ${error.message}`, 'error');
+      } finally {
+        // Reset form state
+        submitBtn.disabled = false;
+        submitText.textContent = 'Upload & Transcribe';
+        hide(progressBar);
+        progressFill.style.width = '0%';
+      }
+    };
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Initializing Telegram WebApp...');
+
+      if (!window.Telegram?.WebApp) {
+        showStatus('❌ Telegram WebApp not available. Please open from Telegram bot.', 'error');
+        return;
+      }
+
+      tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+
+      // Apply Telegram theme
+      if (tg.colorScheme === 'dark') {
+        document.documentElement.style.setProperty('--background-color', tg.themeParams.bg_color || '#1a1a1a');
+        document.documentElement.style.setProperty('--card-background', tg.themeParams.secondary_bg_color || '#2a2a2a');
+        document.documentElement.style.setProperty('--text-color', tg.themeParams.text_color || '#ffffff');
+      }
+
+      // Set initData
+      $('initData').value = tg.initData || '';
+
+      // Show ready status
+      if (tg.initData) {
+        showStatus('✅ Ready to transcribe your audio files!', 'success', 3000);
+      } else {
+        showStatus('⚠️ No Telegram data found. Please open from Telegram bot.', 'error');
+      }
+
+      console.log('WebApp initialized successfully');
     });
   </script>
 </body>
