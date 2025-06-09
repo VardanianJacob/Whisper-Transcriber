@@ -2,10 +2,12 @@ import hmac
 import hashlib
 import logging
 import os
+import json
 from urllib.parse import parse_qsl
 from config import BOT_TOKEN, ENV
 
 logger = logging.getLogger(__name__)
+
 
 def verify_telegram_init_data(init_data: str) -> dict:
     """
@@ -34,8 +36,20 @@ def verify_telegram_init_data(init_data: str) -> dict:
 
     # Securely compare calculated hash and received hash
     if not hmac.compare_digest(calculated_hash, hash_received):
+        logger.error(f"Hash mismatch. Expected: {calculated_hash}, Got: {hash_received}")
+        logger.error(f"Data check string: {data_check_string}")
         raise ValueError("Invalid initData signature")
 
     logger.info(f"Parsed initData: {parsed}")
 
-    return parsed  # Contains user_id, username, etc.
+    # ИСПРАВЛЕНО: Извлекаем username из JSON строки user
+    try:
+        user_data = json.loads(parsed.get("user", "{}"))
+        username = user_data.get("username", "").lower()
+        logger.info(f"🔍 Extracted username: {username}")
+
+        # Возвращаем структуру которую ожидает server.py
+        return {"username": username, "user_data": user_data}
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse user data: {e}")
+        raise ValueError("Invalid user data in initData")
