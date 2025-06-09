@@ -1,6 +1,10 @@
 import os
 import secrets
+import logging
 from dotenv import load_dotenv
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 # 🔄 Load environment variables from .env.local
 load_dotenv(dotenv_path=".env.local")
@@ -56,16 +60,22 @@ DEFAULT_OUTPUT_FORMAT = os.getenv("DEFAULT_OUTPUT_FORMAT", "markdown")
 DEFAULT_SPEAKER_LABELS = safe_bool(os.getenv("DEFAULT_SPEAKER_LABELS"), True)
 DEFAULT_TRANSLATE = safe_bool(os.getenv("DEFAULT_TRANSLATE"), False)
 
-# 👥 Allowed Telegram usernames for Mini App access
+# 👥 Security - allowed usernames from environment variable
+# Set via: fly secrets set ALLOWED_USERNAMES="user1,user2,user3" -a whisperapi
+ALLOWED_USERNAMES_STR = os.getenv("ALLOWED_USERNAMES", "")
 ALLOWED_USERNAMES = {
     username.strip().lower()
-    for username in os.getenv("ALLOWED_USERNAMES", "").split(",")
+    for username in ALLOWED_USERNAMES_STR.split(",")
     if username.strip()
 }
 
 # Validate that at least one user exists in prod
 if ENV == "prod" and not ALLOWED_USERNAMES:
-    raise RuntimeError("❌ ALLOWED_USERNAMES must be set in production mode.")
+    raise RuntimeError("❌ ALLOWED_USERNAMES must be set in production mode. Use: fly secrets set ALLOWED_USERNAMES='user1,user2' -a whisperapi")
+
+# Warning for development mode if no users set
+if ENV == "dev" and not ALLOWED_USERNAMES:
+    logger.warning("⚠️ No ALLOWED_USERNAMES set for development. Set via environment variable or .env.local file.")
 
 # 🔑 JWT settings with secure defaults
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -93,3 +103,7 @@ if DEFAULT_MIN_SPEAKERS < 1 or DEFAULT_MIN_SPEAKERS > DEFAULT_MAX_SPEAKERS:
 # 📋 Configuration summary for debugging
 if ENV == "dev":
     print(f"🔧 Config loaded: ENV={ENV}, Users={len(ALLOWED_USERNAMES)}, JWT_expires={JWT_EXPIRES_MINUTES}min")
+    if ALLOWED_USERNAMES:
+        print(f"👥 Allowed users: {', '.join(sorted(ALLOWED_USERNAMES))}")
+    else:
+        print("⚠️ No users configured - access will be denied")
