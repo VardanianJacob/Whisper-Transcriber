@@ -33,8 +33,21 @@ class Transcription(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
-# Initialize database
-engine = create_engine("sqlite:///transcriptions.db", echo=False)
+# Database configuration - supports both PostgreSQL and SQLite
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL:
+    # Production - PostgreSQL from Fly.io
+    engine = create_engine(DATABASE_URL, echo=False)
+    logger = logging.getLogger(__name__)
+    logger.info("🐘 Using PostgreSQL database")
+else:
+    # Development - SQLite fallback
+    engine = create_engine("sqlite:///transcriptions.db", echo=False)
+    logger = logging.getLogger(__name__)
+    logger.info("📁 Using SQLite database")
+
+# Create tables
 SQLModel.metadata.create_all(engine)
 
 from config import (
@@ -209,13 +222,15 @@ def safe_cleanup(file_path: str) -> None:
 @app.get("/", response_class=HTMLResponse)
 async def health_check():
     """Health check endpoint."""
-    return '''
+    db_type = "PostgreSQL" if DATABASE_URL else "SQLite"
+    return f'''
     <html>
     <head><title>WhisperAPI</title></head>
     <body>
         <h1>🎤 Whisper API</h1>
         <p>✅ Service is running</p>
-        <p>Environment: ''' + ENV.upper() + '''</p>
+        <p>Environment: {ENV.upper()}</p>
+        <p>Database: {db_type}</p>
     </body>
     </html>
     '''
@@ -418,9 +433,6 @@ async def upload_audio_file(
             logger.error(f"Database save error: {e}")
 
         # Return as downloadable file
-        file_like = io.BytesIO(markdown.encode("utf-8"))
-        file_like.seek(0)
-
         safe_filename = "".join(c for c in file.filename if c.isalnum() or c in "._-")
 
         return StreamingResponse(
@@ -525,6 +537,6 @@ if __name__ == "__main__":
         "server:app",
         host="0.0.0.0",
         port=8080,
-        reload=ENV == "dev",
+        reload=ENV == "dev",s
         log_level="info"
     )
