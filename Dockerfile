@@ -9,7 +9,7 @@ WORKDIR /app
 
 # 📋 Copy requirements directory and install dependencies
 COPY requirements/ ./requirements/
-RUN pip install --no-cache-dir -r requirements/base.txt \
+RUN pip install --no-cache-dir -r requirements/production.txt \
     && pip cache purge
 
 # 📁 Copy application code (excluding unnecessary files)
