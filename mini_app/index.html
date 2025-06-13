@@ -389,12 +389,6 @@
       margin: 16px 0;
     }
 
-    .analysis-iframe {
-      width: 100%;
-      height: 500px;
-      border: none;
-    }
-
     @media (max-width: 600px) {
       body {
         padding: 10px;
@@ -928,4 +922,15 @@
 
         // Handle speaker parameters
         const speakerMode = formData.get('speaker_mode');
-        formData.set('min_speakers',
+        formData.set('min_speakers', '1');
+
+        if (speakerMode === 'manual') {
+          const numSpeakers = formData.get('num_speakers') || '2';
+          formData.set('max_speakers', numSpeakers);
+        } else {
+          formData.set('max_speakers', '8');
+        }
+
+        // Remove our custom fields
+        formData.delete('speaker_mode');
+        formData.delete('num_speakers');
