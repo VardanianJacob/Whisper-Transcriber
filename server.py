@@ -16,7 +16,9 @@ import logging
 import io
 import tempfile
 import secrets
+import asyncio
 from pathlib import Path
+from enum import Enum
 
 # Database setup with SQLModel
 from sqlmodel import SQLModel, Field, create_engine, Session, select
@@ -31,6 +33,29 @@ class Transcription(SQLModel, table=True):
     output_format: str
     transcript: str = Field(max_length=50000)  # Prevent extremely large texts
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class TaskStatus(str, Enum):
+    """Status enum for analysis tasks."""
+    PENDING = "pending"
+    TRANSCRIBING = "transcribing"
+    ANALYZING = "analyzing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class AnalysisTask(SQLModel, table=True):
+    """Database model for tracking async analysis tasks."""
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(index=True)
+    filename: str
+    status: TaskStatus = Field(default=TaskStatus.PENDING)
+    progress: int = Field(default=0)  # 0-100%
+    transcript: str | None = Field(default=None, max_length=50000)
+    analysis_html: str | None = Field(default=None)
+    error_message: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    completed_at: datetime | None = Field(default=None)
 
 
 # Database configuration - supports both PostgreSQL and SQLite
@@ -221,6 +246,88 @@ def safe_cleanup(file_path: str) -> None:
         logger.warning(f"Failed to cleanup {file_path}: {e}")
 
 
+# Background task processor
+async def process_analysis_task(
+        task_id: int,
+        file_path: str,
+        language: str,
+        prompt: Optional[str],
+        speaker_labels: bool,
+        translate: bool,
+        timestamp_granularities: List[str],
+        min_speakers: int,
+        max_speakers: int
+):
+    """Background task processor for large file analysis."""
+
+    def update_task(status: TaskStatus, progress: int = 0, error: str = None,
+                    transcript: str = None, analysis: str = None):
+        try:
+            with Session(engine) as session:
+                task = session.get(AnalysisTask, task_id)
+                if task:
+                    task.status = status
+                    task.progress = progress
+                    if error:
+                        task.error_message = error
+                    if transcript:
+                        task.transcript = transcript[:50000]
+                    if analysis:
+                        task.analysis_html = analysis
+                    if status == TaskStatus.COMPLETED:
+                        task.completed_at = datetime.utcnow()
+                    session.commit()
+        except Exception as e:
+            logger.error(f"Failed to update task {task_id}: {e}")
+
+    try:
+        logger.info(f"🚀 Starting background analysis for task {task_id}")
+
+        # Step 1: Transcribe
+        update_task(TaskStatus.TRANSCRIBING, 10)
+
+        validated_path = validate_audio_file(file_path)
+
+        update_task(TaskStatus.TRANSCRIBING, 30)
+
+        result = transcribe_audio(
+            file_path=str(validated_path),
+            language=language,
+            prompt=prompt,
+            speaker_labels=speaker_labels,
+            translate=translate,
+            response_format="verbose_json",
+            timestamp_granularities=timestamp_granularities,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers
+        )
+
+        transcript_text = result.get("text", "")
+        if not transcript_text:
+            raise Exception("Transcription failed or empty")
+
+        update_task(TaskStatus.ANALYZING, 70, transcript=transcript_text)
+
+        # Step 2: Claude Analysis
+        from utils.claude_analyzer import generate_speaking_analysis
+
+        html_analysis = await generate_speaking_analysis(
+            transcript=transcript_text,
+            filename=os.path.basename(file_path)
+        )
+
+        update_task(TaskStatus.COMPLETED, 100, analysis=html_analysis)
+
+        logger.info(f"✅ Background analysis completed for task {task_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Background analysis failed for task {task_id}: {e}")
+        update_task(TaskStatus.FAILED, 0, error=str(e))
+
+    finally:
+        safe_cleanup(file_path)
+
+
 # API Endpoints
 
 @app.get("/", response_class=HTMLResponse)
@@ -251,21 +358,49 @@ async def get_history(
 
     try:
         with Session(engine) as session:
-            results = session.exec(
+            # Get regular transcriptions
+            transcriptions = session.exec(
                 select(Transcription)
                 .where(Transcription.username == username)
                 .order_by(Transcription.created_at.desc())
                 .limit(limit)
             ).all()
 
-        return [
-            {
+            # Get completed analysis tasks
+            completed_tasks = session.exec(
+                select(AnalysisTask)
+                .where(AnalysisTask.username == username)
+                .where(AnalysisTask.status == TaskStatus.COMPLETED)
+                .order_by(AnalysisTask.completed_at.desc())
+                .limit(limit)
+            ).all()
+
+        # Combine and format results
+        results = []
+
+        # Add transcriptions
+        for t in transcriptions:
+            results.append({
                 "filename": t.filename,
                 "created_at": t.created_at,
                 "output_format": t.output_format,
                 "transcript": t.transcript
-            } for t in results
-        ]
+            })
+
+        # Add completed analysis tasks
+        for task in completed_tasks:
+            results.append({
+                "filename": task.filename,
+                "created_at": task.completed_at or task.created_at,
+                "output_format": "html_analysis",
+                "transcript": task.analysis_html or task.transcript or ""
+            })
+
+        # Sort by date and limit
+        results.sort(key=lambda x: x["created_at"], reverse=True)
+
+        return results[:limit]
+
     except Exception as e:
         logger.error(f"Database error in get_history: {e}")
         raise HTTPException(status_code=500, detail="Database error")
@@ -306,10 +441,12 @@ async def upload_audio(
             content = await file.read()
             f.write(content)
 
+        # Log file size
+        file_size_mb = len(content) / (1024 * 1024)
+        logger.info(f"📁 Processing upload: {file.filename} ({file_size_mb:.1f}MB) for user: {username}")
+
         # Validate file
         validated_path = validate_audio_file(temp_path)
-
-        logger.info(f"Processing upload: {file.filename} for user: {username}")
 
         # Transcribe audio
         result = transcribe_audio(
@@ -327,13 +464,13 @@ async def upload_audio(
 
         # Format output based on requested format
         if output_format == "markdown":
-            content = format_verbose_json_to_markdown(result)
+            content_result = format_verbose_json_to_markdown(result)
         elif output_format == "srt":
-            content = result.get("srt", "") or "No SRT data available"
+            content_result = result.get("srt", "") or "No SRT data available"
         elif output_format == "html":
-            content = format_verbose_json_to_html(result)
+            content_result = format_verbose_json_to_html(result)
         else:  # text format
-            content = result.get("text", "") or "No plain text available"
+            content_result = result.get("text", "") or "No plain text available"
 
         # Save to database
         try:
@@ -342,7 +479,7 @@ async def upload_audio(
                     username=username,
                     filename=file.filename,
                     output_format=output_format,
-                    transcript=content[:50000]  # Truncate if too long
+                    transcript=content_result[:50000]  # Truncate if too long
                 )
                 session.add(transcription)
                 session.commit()
@@ -355,7 +492,7 @@ async def upload_audio(
             "message": "✅ Transcription completed successfully",
             "filename": file.filename,
             "output_format": output_format,
-            "transcript": content
+            "transcript": content_result
         }
 
     except WhisperAPIError as e:
@@ -472,10 +609,21 @@ async def analyze_transcript(
 ):
     """
     Upload audio file, transcribe it, and generate AI-powered HTML analysis report.
+    For small files (< 10MB). For larger files, use /analyze-async.
     Requires JWT token in Authorization header.
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
+
+    # Check file size
+    content = await file.read()
+    file_size_mb = len(content) / (1024 * 1024)
+
+    if file_size_mb > 10:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({file_size_mb:.1f}MB). Use /analyze-async for files > 10MB."
+        )
 
     # Validate callback URL format if provided
     callback_url = None
@@ -487,13 +635,12 @@ async def analyze_transcript(
     try:
         # Save uploaded file
         with open(temp_path, "wb") as f:
-            content = await file.read()
             f.write(content)
 
         # Validate file
         validated_path = validate_audio_file(temp_path)
 
-        logger.info(f"Processing analysis request: {file.filename} for user: {username}")
+        logger.info(f"📝 Processing small file analysis: {file.filename} ({file_size_mb:.1f}MB) for user: {username}")
 
         # Step 1: Transcribe audio
         transcript_result = transcribe_audio(
@@ -514,9 +661,12 @@ async def analyze_transcript(
         if not transcript_text:
             raise HTTPException(status_code=400, detail="Transcription failed or empty")
 
+        logger.info(f"📝 Transcript length: {len(transcript_text)} characters")
+
         # Step 2: Generate HTML analysis using Claude
         from utils.claude_analyzer import generate_speaking_analysis
 
+        logger.info("🧠 Starting Claude analysis...")
         html_analysis = await generate_speaking_analysis(
             transcript=transcript_text,
             filename=file.filename
@@ -553,6 +703,151 @@ async def analyze_transcript(
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
     finally:
         safe_cleanup(temp_path)
+
+
+@app.post("/analyze-async", tags=["Analysis"])
+async def analyze_async(
+        file: UploadFile = File(...),
+        speaker_labels: bool = Form(DEFAULT_SPEAKER_LABELS),
+        prompt: Optional[str] = Form(None),
+        language: str = Form(DEFAULT_LANGUAGE),
+        translate: bool = Form(DEFAULT_TRANSLATE),
+        timestamp_granularities: List[str] = Form(DEFAULT_TIMESTAMP_GRANULARITIES),
+        min_speakers: int = Form(DEFAULT_MIN_SPEAKERS),
+        max_speakers: int = Form(DEFAULT_MAX_SPEAKERS),
+        username: str = Depends(get_current_username)
+):
+    """
+    Start async analysis task for large files (>10MB).
+    Returns task ID immediately, processing happens in background.
+    """
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    # Check file size
+    content = await file.read()
+    file_size_mb = len(content) / (1024 * 1024)
+
+    logger.info(f"🚀 Starting async analysis: {file.filename} ({file_size_mb:.1f}MB) for user: {username}")
+
+    # Create task record
+    with Session(engine) as session:
+        task = AnalysisTask(
+            username=username,
+            filename=file.filename,
+            status=TaskStatus.PENDING
+        )
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+        task_id = task.id
+
+    # Save file temporarily
+    temp_path = create_safe_temp_file(file.filename)
+    try:
+        with open(temp_path, "wb") as f:
+            f.write(content)
+
+        # Start background task
+        asyncio.create_task(process_analysis_task(
+            task_id=task_id,
+            file_path=temp_path,
+            language=language,
+            prompt=prompt,
+            speaker_labels=speaker_labels,
+            translate=translate,
+            timestamp_granularities=timestamp_granularities,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers
+        ))
+
+    except Exception as e:
+        # Update task with error
+        with Session(engine) as session:
+            task = session.get(AnalysisTask, task_id)
+            if task:
+                task.status = TaskStatus.FAILED
+                task.error_message = str(e)
+                session.commit()
+        safe_cleanup(temp_path)
+        raise HTTPException(status_code=500, detail=f"Failed to start analysis: {str(e)}")
+
+    # Estimate processing time based on file size
+    estimated_minutes = max(5, int(file_size_mb * 0.5))  # ~30 seconds per MB
+    estimated_time = f"{estimated_minutes}-{estimated_minutes + 10} minutes"
+
+    return {
+        "task_id": task_id,
+        "message": "Analysis started. Use /task/{task_id} to check progress.",
+        "filename": file.filename,
+        "file_size_mb": round(file_size_mb, 1),
+        "estimated_time": estimated_time
+    }
+
+
+@app.get("/task/{task_id}", tags=["Analysis"])
+async def get_task_status(
+        task_id: int,
+        username: str = Depends(get_current_username)
+):
+    """Get analysis task status and progress."""
+
+    with Session(engine) as session:
+        task = session.exec(
+            select(AnalysisTask)
+            .where(AnalysisTask.id == task_id)
+            .where(AnalysisTask.username == username)
+        ).first()
+
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        response = {
+            "task_id": task.id,
+            "filename": task.filename,
+            "status": task.status,
+            "progress": task.progress,
+            "created_at": task.created_at
+        }
+
+        if task.error_message:
+            response["error"] = task.error_message
+
+        if task.status == TaskStatus.COMPLETED:
+            response["completed_at"] = task.completed_at
+
+        return response
+
+
+@app.get("/task/{task_id}/result", tags=["Analysis"])
+async def get_task_result(
+        task_id: int,
+        username: str = Depends(get_current_username)
+):
+    """Get completed analysis result as HTML."""
+
+    with Session(engine) as session:
+        task = session.exec(
+            select(AnalysisTask)
+            .where(AnalysisTask.id == task_id)
+            .where(AnalysisTask.username == username)
+        ).first()
+
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        if task.status != TaskStatus.COMPLETED:
+            raise HTTPException(status_code=400, detail=f"Task not completed. Status: {task.status}")
+
+        if not task.analysis_html:
+            raise HTTPException(status_code=404, detail="Analysis result not found")
+
+        return HTMLResponse(
+            content=task.analysis_html,
+            status_code=200,
+            headers={"Content-Type": "text/html; charset=utf-8"}
+        )
 
 
 @app.post("/webapp-auth", tags=["Mini App Auth"])

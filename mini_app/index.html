@@ -379,14 +379,179 @@
       width: 0%;
     }
 
-    .analysis-container {
+    /* Новые стили для асинхронного анализа */
+    .async-progress-container {
+      background: var(--card-background);
+      border: 2px solid var(--claude-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .async-progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .async-progress-header h3 {
+      margin: 0;
+      color: var(--claude-color);
+    }
+
+    .progress-status {
+      font-size: 18px;
+      margin: 10px 0;
+      color: var(--text-color);
+    }
+
+    .progress-percentage {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--claude-color);
+      margin: 10px 0;
+    }
+
+    .progress-bar-async {
       width: 100%;
-      min-height: 400px;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
+      height: 12px;
+      background: #f0f0f0;
+      border-radius: 6px;
       overflow: hidden;
+      margin: 15px 0;
+      position: relative;
+    }
+
+    [data-theme="dark"] .progress-bar-async {
+      background: #333333;
+    }
+
+    .progress-fill-async {
+      height: 100%;
+      background: linear-gradient(90deg, var(--claude-color), var(--claude-hover));
+      transition: width 0.5s ease;
+      width: 0%;
+      position: relative;
+    }
+
+    .progress-fill-async::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .estimated-time {
+      font-size: 14px;
+      color: #666;
+      margin-top: 10px;
+    }
+
+    [data-theme="dark"] .estimated-time {
+      color: #aaa;
+    }
+
+    .status-steps {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0;
+      font-size: 12px;
+    }
+
+    .status-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      position: relative;
+    }
+
+    .status-step::after {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: #ddd;
+      z-index: 0;
+    }
+
+    .status-step:last-child::after {
+      display: none;
+    }
+
+    .status-step-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      margin-bottom: 5px;
+      position: relative;
+      z-index: 1;
+      transition: all 0.3s ease;
+    }
+
+    .status-step.active .status-step-icon {
+      background: var(--claude-color);
+      color: white;
+    }
+
+    .status-step.completed .status-step-icon {
+      background: var(--success-color);
+      color: white;
+    }
+
+    /* Стили для анализа Claude */
+    .analysis-frame-container {
       background: white;
-      margin: 16px 0;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      max-height: 70vh;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .analysis-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 15px;
+    }
+
+    .analysis-actions {
+      margin-top: 15px;
+      text-align: center;
+      gap: 10px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .analysis-container-wrapper {
+      background: var(--card-background);
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 
     @media (max-width: 600px) {
@@ -402,6 +567,30 @@
         width: 100%;
         margin-bottom: 8px;
         justify-content: center;
+      }
+
+      .analysis-header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+      }
+
+      .analysis-actions {
+        flex-direction: column;
+      }
+
+      .analysis-actions .btn {
+        width: 100%;
+        margin: 5px 0;
+      }
+
+      .status-steps {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .status-step::after {
+        display: none;
       }
     }
   </style>
@@ -491,7 +680,8 @@
 
     <div id="resultContainer" class="container hidden fade-in"></div>
     <div id="historyContainer" class="container hidden fade-in"></div>
-    <div id="analysisContainer" class="container hidden fade-in"></div>
+    <div id="analysisContainer" class="hidden fade-in"></div>
+    <div id="asyncAnalysisContainer" class="hidden fade-in"></div>
   </div>
 
   <script>
@@ -499,10 +689,13 @@
     const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
     const SUPPORTED_TYPES = ['audio/', 'video/'];
     const SUPPORTED_EXTENSIONS = ['.m4a', '.mp3', '.wav', '.aac', '.mp4', '.mov', '.caf'];
+    const SYNC_ANALYSIS_LIMIT = 10 * 1024 * 1024; // 10MB
 
     // Global variables
     let tg = null;
     let currentView = 'upload';
+    let asyncTaskId = null;
+    let pollingInterval = null;
 
     // Utility functions
     const $ = (id) => document.getElementById(id);
@@ -630,7 +823,7 @@
 
     // View management
     function showView(viewName) {
-      const views = ['uploadForm', 'resultContainer', 'historyContainer', 'analysisContainer'];
+      const views = ['uploadForm', 'resultContainer', 'historyContainer', 'analysisContainer', 'asyncAnalysisContainer'];
       views.forEach(view => {
         const el = $(view);
         if (view === viewName || (viewName === 'upload' && view === 'uploadForm')) {
@@ -677,20 +870,304 @@
       showView('resultContainer');
     }
 
-    function showAnalysis(htmlContent, filename) {
-      const container = $('analysisContainer');
+    // Async analysis progress display
+    function showAsyncProgress(taskData) {
+      const container = $('asyncAnalysisContainer');
+
       container.innerHTML = `
-        <h2>🧠 AI Analysis Report</h2>
-        <div class="status success">Claude has analyzed your audio transcription: ${filename}</div>
-        <div class="analysis-container">
-          ${htmlContent}
+        <div class="async-progress-container">
+          <div class="async-progress-header">
+            <div class="spinner"></div>
+            <h3>🧠 Claude is analyzing your audio</h3>
+          </div>
+
+          <div class="progress-status" id="progressStatus">Starting analysis...</div>
+          <div class="progress-percentage" id="progressPercentage">0%</div>
+
+          <div class="progress-bar-async">
+            <div class="progress-fill-async" id="progressFillAsync"></div>
+          </div>
+
+          <div class="status-steps">
+            <div class="status-step" id="step-pending">
+              <div class="status-step-icon">⏳</div>
+              <div>Queued</div>
+            </div>
+            <div class="status-step" id="step-transcribing">
+              <div class="status-step-icon">🎤</div>
+              <div>Transcribing</div>
+            </div>
+            <div class="status-step" id="step-analyzing">
+              <div class="status-step-icon">🧠</div>
+              <div>Analyzing</div>
+            </div>
+            <div class="status-step" id="step-completed">
+              <div class="status-step-icon">✅</div>
+              <div>Complete</div>
+            </div>
+          </div>
+
+          <div class="estimated-time" id="estimatedTime">
+            ${taskData.estimated_time ? `Estimated time: ${taskData.estimated_time}` : ''}
+          </div>
+
+          <div style="margin-top: 20px;">
+            <button type="button" class="btn btn-secondary" onclick="cancelAsyncAnalysis()">
+              ❌ Cancel Analysis
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="showView('upload')">
+              ⬅️ Start New Task
+            </button>
+          </div>
         </div>
-        <button type="button" class="btn btn-secondary" onclick="showView('upload')">
-          ⬅️ New Analysis
-        </button>
       `;
 
+      showView('asyncAnalysisContainer');
+    }
+
+    // Update async progress
+    function updateAsyncProgress(status, progress = 0) {
+      const progressStatus = $('progressStatus');
+      const progressPercentage = $('progressPercentage');
+      const progressFillAsync = $('progressFillAsync');
+
+      if (progressStatus) progressStatus.textContent = getStatusMessage(status);
+      if (progressPercentage) progressPercentage.textContent = `${progress}%`;
+      if (progressFillAsync) progressFillAsync.style.width = `${progress}%`;
+
+      // Update status steps
+      const steps = ['pending', 'transcribing', 'analyzing', 'completed'];
+      steps.forEach(step => {
+        const stepEl = $(`step-${step}`);
+        if (stepEl) {
+          stepEl.classList.remove('active', 'completed');
+
+          if (status === step) {
+            stepEl.classList.add('active');
+          } else if (steps.indexOf(status) > steps.indexOf(step)) {
+            stepEl.classList.add('completed');
+          }
+        }
+      });
+    }
+
+    function getStatusMessage(status) {
+      const messages = {
+        'pending': 'Waiting in queue...',
+        'transcribing': 'Converting speech to text...',
+        'analyzing': 'Claude is analyzing the conversation...',
+        'completed': 'Analysis complete!',
+        'failed': 'Analysis failed'
+      };
+      return messages[status] || 'Processing...';
+    }
+
+    // Poll async task status
+    async function pollAsyncTask(taskId) {
+      try {
+        const token = await authenticate();
+        const response = await apiCall(`/task/${taskId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const taskData = await response.json();
+        updateAsyncProgress(taskData.status, taskData.progress);
+
+        if (taskData.status === 'completed') {
+          // Stop polling
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+          }
+
+          // Get the result
+          setTimeout(async () => {
+            try {
+              const resultResponse = await apiCall(`/task/${taskId}/result`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const htmlContent = await resultResponse.text();
+              showAnalysis(htmlContent, taskData.filename);
+            } catch (error) {
+              showStatus(`❌ Failed to load result: ${error.message}`, 'error');
+            }
+          }, 1000);
+
+        } else if (taskData.status === 'failed') {
+          // Stop polling
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+          }
+
+          showStatus(`❌ Analysis failed: ${taskData.error || 'Unknown error'}`, 'error');
+
+          // Show retry option
+          setTimeout(() => {
+            const container = $('asyncAnalysisContainer');
+            container.innerHTML += `
+              <div style="text-align: center; margin-top: 20px;">
+                <button type="button" class="btn btn-claude" onclick="retryLastAnalysis()">
+                  🔄 Retry Analysis
+                </button>
+              </div>
+            `;
+          }, 2000);
+        }
+
+      } catch (error) {
+        console.error('Polling error:', error);
+        showStatus(`❌ Connection error: ${error.message}`, 'error');
+      }
+    }
+
+    // Start async analysis polling
+    function startAsyncPolling(taskId) {
+      asyncTaskId = taskId;
+
+      // Poll every 3 seconds
+      pollingInterval = setInterval(() => {
+        pollAsyncTask(taskId);
+      }, 3000);
+
+      // Initial poll
+      pollAsyncTask(taskId);
+    }
+
+    // Cancel async analysis
+    function cancelAsyncAnalysis() {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+      asyncTaskId = null;
+      showView('upload');
+      showStatus('Analysis cancelled', 'info', 3000);
+    }
+
+    // Retry last analysis (store file data for retry)
+    let lastAnalysisFile = null;
+
+    function retryLastAnalysis() {
+      if (lastAnalysisFile) {
+        performClaudeAnalysis(lastAnalysisFile);
+      } else {
+        showStatus('❌ No previous analysis to retry', 'error', 3000);
+      }
+    }
+
+    // Improved Claude analysis display
+    function showAnalysis(htmlContent, filename) {
+      const container = $('analysisContainer');
+
+      container.innerHTML = `
+        <div class="analysis-container-wrapper">
+          <div class="analysis-header">
+            <div>
+              <h2 style="margin: 0; color: var(--text-color);">🧠 AI Analysis Report</h2>
+              <p style="margin: 5px 0 0 0; color: var(--text-color); opacity: 0.7;">Claude analyzed: ${filename}</p>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="showView('upload')" style="margin: 0;">
+              ⬅️ Back
+            </button>
+          </div>
+
+          <div class="analysis-frame-container">
+            <iframe
+              id="analysisFrame"
+              style="width: 100%; min-height: 500px; border: none; border-radius: 8px;"
+              sandbox="allow-same-origin allow-scripts"
+              srcdoc=""></iframe>
+          </div>
+
+          <div class="analysis-actions">
+            <button type="button" class="btn btn-primary" onclick="openAnalysisFullscreen()">
+              🔍 Open Fullscreen
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="downloadAnalysis('${filename}')">
+              💾 Download Report
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="shareAnalysis()">
+              📤 Share Analysis
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Безопасно вставляем HTML в iframe
+      const iframe = document.getElementById('analysisFrame');
+      iframe.srcdoc = htmlContent;
+
+      // Автоматически подстраиваем высоту iframe
+      iframe.onload = function() {
+        try {
+          const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+          if (iframeDocument && iframeDocument.body) {
+            const height = iframeDocument.body.scrollHeight;
+            iframe.style.height = Math.min(height + 50, window.innerHeight * 0.7) + 'px';
+          }
+        } catch (e) {
+          // Если не удается получить высоту, устанавливаем фиксированную
+          iframe.style.height = '500px';
+        }
+      };
+
       showView('analysisContainer');
+    }
+
+    // Функция для открытия анализа в полном экране
+    function openAnalysisFullscreen() {
+      const iframe = document.getElementById('analysisFrame');
+      if (iframe && iframe.srcdoc) {
+        const newWindow = window.open('', '_blank');
+        if (newWindow) {
+          newWindow.document.write(iframe.srcdoc);
+          newWindow.document.close();
+        } else {
+          showStatus('❌ Popup blocked. Please allow popups for this site.', 'error', 3000);
+        }
+      }
+    }
+
+    // Функция для скачивания отчета
+    function downloadAnalysis(filename) {
+      const iframe = document.getElementById('analysisFrame');
+      if (iframe && iframe.srcdoc) {
+        try {
+          const blob = new Blob([iframe.srcdoc], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${filename.replace(/\.[^/.]+$/, "")}_analysis.html`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showStatus('✅ Report downloaded successfully!', 'success', 3000);
+        } catch (error) {
+          showStatus('❌ Download failed. Please try again.', 'error', 3000);
+        }
+      }
+    }
+
+    // Функция для расшаривания анализа
+    function shareAnalysis() {
+      if (navigator.share) {
+        navigator.share({
+          title: 'Speech Analysis Report',
+          text: 'Check out this AI-powered speech analysis report generated by Claude.',
+          url: window.location.href
+        }).catch(err => console.log('Error sharing:', err));
+      } else {
+        // Fallback to copying URL
+        copyToClipboard(window.location.href).then(success => {
+          if (success) {
+            showStatus('✅ Link copied to clipboard!', 'success', 3000);
+          } else {
+            showStatus('❌ Sharing not supported on this device.', 'error', 3000);
+          }
+        });
+      }
     }
 
     async function showHistory() {
@@ -718,11 +1195,15 @@
 
           history.forEach((item, index) => {
             const date = new Date(item.created_at).toLocaleString();
+            const isAnalysis = item.output_format === 'html_analysis';
+            const icon = isAnalysis ? '🧠' : '📄';
+            const type = isAnalysis ? 'AI Analysis' : 'Transcription';
+
             historyHTML += `
               <li class="history-item">
-                <div class="history-meta">${date} • ${item.filename} • ${item.output_format}</div>
+                <div class="history-meta">${date} • ${item.filename} • ${type}</div>
                 <button type="button" class="btn btn-secondary" onclick="showHistoryItem(${index})">
-                  👁️ View Transcript
+                  ${icon} View ${type}
                 </button>
               </li>
             `;
@@ -760,22 +1241,23 @@
       }
     }
 
-    // Claude Analysis function
-    async function performClaudeAnalysis() {
+    // Improved Claude Analysis function with async support
+    async function performClaudeAnalysis(fileOverride = null) {
       const analyzeBtn = $('analyzeBtn');
       const originalText = analyzeBtn.innerHTML;
 
       try {
         // Validate form
         const fileInput = $('audioFile');
-        const file = fileInput.files[0];
+        const file = fileOverride || fileInput.files[0];
         validateFile(file);
+
+        // Store file for potential retry
+        lastAnalysisFile = file;
 
         // Disable button and show loading
         analyzeBtn.disabled = true;
         analyzeBtn.innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing with Claude...</div>';
-
-        showLoading('🧠 Claude is analyzing your audio... This may take up to 60 seconds.');
 
         // Authenticate
         const token = await authenticate();
@@ -799,19 +1281,47 @@
           formData.append('max_speakers', '8');
         }
 
-        // Send to analyze endpoint
-        const response = await apiCall('/analyze', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        });
+        // Check file size and choose endpoint
+        const fileSizeMB = file.size / (1024 * 1024);
+        const isLargeFile = fileSizeMB > 10;
 
-        // Get HTML response
-        const htmlContent = await response.text();
+        if (isLargeFile) {
+          // Use async endpoint for large files
+          showLoading(`🧠 Starting analysis for large file (${fileSizeMB.toFixed(1)}MB)...`);
 
-        // Show analysis result
-        showAnalysis(htmlContent, file.name);
-        hide($('status'));
+          const response = await apiCall('/analyze-async', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+
+          const result = await response.json();
+
+          // Show async progress
+          showAsyncProgress(result);
+
+          // Start polling
+          startAsyncPolling(result.task_id);
+
+          hide($('status'));
+
+        } else {
+          // Use sync endpoint for small files
+          showLoading(`🧠 Claude is analyzing your audio (${fileSizeMB.toFixed(1)}MB)... This may take up to 60 seconds.`);
+
+          const response = await apiCall('/analyze', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+
+          // Get HTML response
+          const htmlContent = await response.text();
+
+          // Show analysis result
+          showAnalysis(htmlContent, file.name);
+          hide($('status'));
+        }
 
       } catch (error) {
         showStatus(`❌ Analysis failed: ${error.message}`, 'error');
@@ -834,10 +1344,14 @@
 
       try {
         validateFile(file);
+        const fileSizeMB = file.size / (1024 * 1024);
+        const analysisType = fileSizeMB > 10 ? 'Async Analysis (Large File)' : 'Quick Analysis';
+
         fileInfo.innerHTML = `
           📁 ${file.name}<br>
           📊 ${formatFileSize(file.size)}<br>
-          🎵 ${file.type || 'Unknown type'}
+          🎵 ${file.type || 'Unknown type'}<br>
+          🧠 ${analysisType}
         `;
         fileInfo.className = 'file-info';
         show(fileInfo);
@@ -866,7 +1380,9 @@
           <strong>Username:</strong> ${tg?.initDataUnsafe?.user?.username || 'unknown'}<br>
           <strong>WebApp version:</strong> ${tg?.version || 'unknown'}<br>
           <strong>Platform:</strong> ${tg?.platform || 'unknown'}<br>
-          <strong>Color scheme:</strong> ${tg?.colorScheme || 'unknown'}
+          <strong>Color scheme:</strong> ${tg?.colorScheme || 'unknown'}<br>
+          <strong>Current task:</strong> ${asyncTaskId || 'none'}<br>
+          <strong>Polling active:</strong> ${pollingInterval ? 'yes' : 'no'}
         `;
         show(debugInfo);
         $('debugBtn').innerHTML = '🔧 Hide Debug';
@@ -885,7 +1401,7 @@
 
     // Event handlers
     $('showHistoryBtn').onclick = showHistory;
-    $('analyzeBtn').onclick = performClaudeAnalysis;
+    $('analyzeBtn').onclick = () => performClaudeAnalysis();
 
     // Form submission
     $('uploadForm').onsubmit = async (e) => {
@@ -965,6 +1481,13 @@
         progressFill.style.width = '0%';
       }
     };
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    });
 
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', () => {
