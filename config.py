@@ -22,10 +22,21 @@ if not WHISPER_API_KEY:
 if not WHISPER_API_URL:
     raise RuntimeError("❌ WHISPER_API_URL is missing in environment variables.")
 
+# 🤖 Claude API configuration
+CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+CLAUDE_API_URL = os.getenv("CLAUDE_API_URL", "https://api.anthropic.com/v1/messages")
+
+# Логирование статуса Claude API (не блокируем запуск если нет ключа)
+if CLAUDE_API_KEY:
+    logger.info("🧠 Claude API key found - AI analysis available")
+else:
+    logger.warning("⚠️ CLAUDE_API_KEY not found - Claude analysis will be unavailable")
+
 # 🤖 Telegram bot token - required for prod mode
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if ENV == "prod" and not BOT_TOKEN:
     raise RuntimeError("❌ BOT_TOKEN is required in production mode.")
+
 
 # ⚙️ Default transcription parameters with safe parsing
 def safe_int(value, default):
@@ -35,11 +46,13 @@ def safe_int(value, default):
     except (ValueError, TypeError):
         return default
 
+
 def safe_bool(value, default):
     """Safe conversion to bool."""
     if value is None:
         return default
     return str(value).lower() in ("true", "1", "yes", "on")
+
 
 def safe_list(value, default, separator=","):
     """Safe conversion to list with filtering."""
@@ -47,6 +60,7 @@ def safe_list(value, default, separator=","):
         return default
     items = [item.strip() for item in value.split(separator) if item.strip()]
     return items if items else default
+
 
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "english")
 DEFAULT_RESPONSE_FORMAT = os.getenv("DEFAULT_RESPONSE_FORMAT", "verbose_json")
@@ -71,7 +85,8 @@ ALLOWED_USERNAMES = {
 
 # Validate that at least one user exists in prod
 if ENV == "prod" and not ALLOWED_USERNAMES:
-    raise RuntimeError("❌ ALLOWED_USERNAMES must be set in production mode. Use: fly secrets set ALLOWED_USERNAMES='user1,user2' -a whisperapi")
+    raise RuntimeError(
+        "❌ ALLOWED_USERNAMES must be set in production mode. Use: fly secrets set ALLOWED_USERNAMES='user1,user2' -a whisperapi")
 
 # Warning for development mode if no users set
 if ENV == "dev" and not ALLOWED_USERNAMES:
@@ -107,3 +122,7 @@ if ENV == "dev":
         print(f"👥 Allowed users: {', '.join(sorted(ALLOWED_USERNAMES))}")
     else:
         print("⚠️ No users configured - access will be denied")
+
+    # Claude status for dev mode
+    claude_status = "✅ Available" if CLAUDE_API_KEY else "❌ Not configured"
+    print(f"🧠 Claude API: {claude_status}")

@@ -457,6 +457,104 @@ async def upload_audio_file(
         safe_cleanup(temp_path)
 
 
+@app.post("/analyze", tags=["Analysis"])
+async def analyze_transcript(
+        file: UploadFile = File(...),
+        speaker_labels: bool = Form(DEFAULT_SPEAKER_LABELS),
+        prompt: Optional[str] = Form(None),
+        language: str = Form(DEFAULT_LANGUAGE),
+        callback_url_raw: Optional[str] = Form(None),
+        translate: bool = Form(DEFAULT_TRANSLATE),
+        timestamp_granularities: List[str] = Form(DEFAULT_TIMESTAMP_GRANULARITIES),
+        min_speakers: int = Form(DEFAULT_MIN_SPEAKERS),
+        max_speakers: int = Form(DEFAULT_MAX_SPEAKERS),
+        username: str = Depends(get_current_username)
+):
+    """
+    Upload audio file, transcribe it, and generate AI-powered HTML analysis report.
+    Requires JWT token in Authorization header.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    # Validate callback URL format if provided
+    callback_url = None
+    if callback_url_raw and callback_url_raw not in ["", "None"]:
+        callback_url = callback_url_raw
+
+    temp_path = create_safe_temp_file(file.filename)
+
+    try:
+        # Save uploaded file
+        with open(temp_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+
+        # Validate file
+        validated_path = validate_audio_file(temp_path)
+
+        logger.info(f"Processing analysis request: {file.filename} for user: {username}")
+
+        # Step 1: Transcribe audio
+        transcript_result = transcribe_audio(
+            file_path=str(validated_path),
+            language=language,
+            prompt=prompt,
+            speaker_labels=speaker_labels,
+            translate=translate,
+            response_format="verbose_json",
+            timestamp_granularities=timestamp_granularities,
+            callback_url=callback_url,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers
+        )
+
+        # Get transcript text
+        transcript_text = transcript_result.get("text", "")
+        if not transcript_text:
+            raise HTTPException(status_code=400, detail="Transcription failed or empty")
+
+        # Step 2: Generate HTML analysis using Claude
+        from utils.claude_analyzer import generate_speaking_analysis
+
+        html_analysis = await generate_speaking_analysis(
+            transcript=transcript_text,
+            filename=file.filename
+        )
+
+        # Step 3: Save to database
+        try:
+            with Session(engine) as session:
+                transcription = Transcription(
+                    username=username,
+                    filename=file.filename,
+                    output_format="html_analysis",
+                    transcript=html_analysis[:50000]  # Truncate if too long
+                )
+                session.add(transcription)
+                session.commit()
+                logger.info(f"Saved HTML analysis to database for user: {username}")
+        except Exception as e:
+            logger.error(f"Database save error: {e}")
+            # Continue anyway, return result even if DB save fails
+
+        # Step 4: Return HTML analysis
+        return HTMLResponse(
+            content=html_analysis,
+            status_code=200,
+            headers={"Content-Type": "text/html; charset=utf-8"}
+        )
+
+    except WhisperAPIError as e:
+        logger.error(f"Whisper API error: {e}")
+        raise HTTPException(status_code=400, detail=f"Transcription failed: {str(e)}")
+    except Exception as e:
+        logger.error(f"Analysis processing error: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    finally:
+        safe_cleanup(temp_path)
+
+
 @app.post("/webapp-auth", tags=["Mini App Auth"])
 async def webapp_auth(request: Request):
     """Legacy WebApp authorization endpoint (deprecated, use /auth instead)."""
