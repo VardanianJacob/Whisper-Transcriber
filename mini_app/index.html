@@ -934,3 +934,71 @@
         // Remove our custom fields
         formData.delete('speaker_mode');
         formData.delete('num_speakers');
+
+        // Step 3: Upload
+        submitText.textContent = 'Uploading & transcribing...';
+        progressFill.style.width = '60%';
+
+        const response = await apiCall('/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        progressFill.style.width = '100%';
+
+        const result = await response.json();
+
+        if (result.transcript) {
+          showResult(result.transcript, result.filename, result.output_format, result.message);
+        } else {
+          showStatus(`✅ ${result.message || 'Upload successful!'}`, 'success');
+        }
+
+      } catch (error) {
+        showStatus(`❌ ${error.message}`, 'error');
+      } finally {
+        // Reset form state
+        submitBtn.disabled = false;
+        submitText.textContent = 'Upload & Transcribe';
+        hide(progressBar);
+        progressFill.style.width = '0%';
+      }
+    };
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Initializing Telegram WebApp...');
+
+      if (!window.Telegram?.WebApp) {
+        showStatus('❌ Telegram WebApp not available. Please open from Telegram bot.', 'error');
+        return;
+      }
+
+      tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+
+      // Apply Telegram theme
+      if (tg.colorScheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.setProperty('--background-color', tg.themeParams.bg_color || '#1a1a1a');
+        document.documentElement.style.setProperty('--card-background', tg.themeParams.secondary_bg_color || '#2a2a2a');
+        document.documentElement.style.setProperty('--text-color', tg.themeParams.text_color || '#ffffff');
+      }
+
+      // Set initData
+      $('initData').value = tg.initData || '';
+
+      // Show ready status
+      if (tg.initData) {
+        showStatus('✅ Ready to transcribe your audio files!', 'success', 3000);
+      } else {
+        showStatus('⚠️ No Telegram data found. Please open from Telegram bot.', 'error');
+      }
+
+      console.log('WebApp initialized successfully');
+    });
+  </script>
+</body>
+</html>
