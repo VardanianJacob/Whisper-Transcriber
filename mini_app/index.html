@@ -3,797 +3,296 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Audio Transcription</title>
-  <!-- Official Telegram WebApp SDK -->
+  <title>Audio Transcription Debug</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    :root {
-      --primary-color: #2196F3;
-      --primary-hover: #1976D2;
-      --success-color: #4CAF50;
-      --success-hover: #45a049;
-      --error-color: #f44336;
-      --background-color: #f6f6f6;
-      --card-background: #ffffff;
-      --text-color: #333333;
-      --border-color: #dddddd;
-      --secondary-bg: #6c757d;
-      --secondary-hover: #5a6268;
-      --claude-color: #6366f1;
-      --claude-hover: #4f46e5;
-    }
-
-    [data-theme="dark"] {
-      --primary-color: #2196F3;
-      --primary-hover: #1976D2;
-      --success-color: #4CAF50;
-      --success-hover: #45a049;
-      --error-color: #f44336;
-      --background-color: #1a1a1a;
-      --card-background: #2a2a2a;
-      --text-color: #ffffff;
-      --border-color: #444444;
-      --secondary-bg: #495057;
-      --secondary-hover: #3d4449;
-      --claude-color: #8b5cf6;
-      --claude-hover: #7c3aed;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: Arial, sans-serif;
       padding: 20px;
-      background: var(--background-color);
-      color: var(--text-color);
-      margin: 0;
-      line-height: 1.5;
+      background: #f0f0f0;
+      color: #333;
     }
 
     .container {
-      background: var(--card-background);
-      padding: 24px;
-      border-radius: 12px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
       max-width: 600px;
       margin: 0 auto;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-
-    h2 {
-      margin: 0 0 24px 0;
-      color: var(--text-color);
-      font-size: 1.5em;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
-      color: var(--text-color);
-    }
-
-    input[type="text"],
-    input[type="file"],
-    input[type="number"],
-    select,
-    textarea {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid var(--border-color);
-      border-radius: 8px;
-      font-size: 16px;
-      transition: border-color 0.3s ease;
-      background: var(--card-background);
-      color: var(--text-color);
-    }
-
-    input[type="file"] {
-      padding: 8px;
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      outline: none;
-      border-color: var(--primary-color);
-    }
-
-    input[type="checkbox"] {
-      width: auto;
-      margin-right: 8px;
-    }
-
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-      margin-top: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
 
     .btn {
-      padding: 12px 24px;
-      margin: 8px 8px 8px 0;
+      padding: 15px 30px;
+      margin: 10px;
       border: none;
       border-radius: 8px;
       font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .btn-primary {
-      background: var(--primary-color);
-      color: white;
-      border: 2px solid var(--primary-color);
-    }
-
-    .btn-primary:hover:not(:disabled) {
-      background: var(--primary-hover);
-      border-color: var(--primary-hover);
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-      background: var(--secondary-bg);
-      color: white;
-      border: 2px solid var(--secondary-bg);
-    }
-
-    .btn-secondary:hover:not(:disabled) {
-      background: var(--secondary-hover);
-      border-color: var(--secondary-hover);
-    }
-
-    .btn-success {
-      background: var(--success-color);
-      color: white;
-      border: 2px solid var(--success-color);
-    }
-
-    .btn-success:hover:not(:disabled) {
-      background: var(--success-hover);
-      border-color: var(--success-hover);
-    }
-
-    .btn-claude {
-      background: linear-gradient(135deg, var(--claude-color) 0%, var(--claude-hover) 100%);
-      color: white;
-      border: 2px solid var(--claude-color);
-      position: relative;
-    }
-
-    .btn-claude::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-      transition: left 0.5s;
-    }
-
-    .btn-claude:hover:not(:disabled)::before {
-      left: 100%;
-    }
-
-    .btn-claude:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-    }
-
-    .new-badge {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      background: #ff4444;
-      color: white;
-      font-size: 10px;
       font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 10px;
-      text-transform: uppercase;
+      cursor: pointer;
+      display: block;
+      width: 100%;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .btn-test {
+      background: #ff6b6b;
+      color: white;
+    }
+
+    .btn-test:hover {
+      background: #ff5252;
+      transform: scale(1.02);
+    }
+
+    .btn-test:active {
+      background: #ff1744;
+      transform: scale(0.98);
+    }
+
+    .btn-download {
+      background: #4ecdc4;
+      color: white;
+    }
+
+    .btn-download:hover {
+      background: #26a69a;
+      transform: scale(1.02);
+    }
+
+    .btn-download:active {
+      background: #00796b;
+      transform: scale(0.98);
+    }
+
+    .btn-fullscreen {
+      background: #45b7d1;
+      color: white;
+    }
+
+    .btn-fullscreen:hover {
+      background: #2196f3;
+      transform: scale(1.02);
+    }
+
+    .btn-fullscreen:active {
+      background: #1976d2;
+      transform: scale(0.98);
     }
 
     .status {
       margin: 20px 0;
-      padding: 12px;
+      padding: 15px;
       border-radius: 8px;
-      font-weight: 600;
-    }
-
-    .status.success {
-      background: #d4edda;
-      color: var(--success-color);
-      border: 1px solid #c3e6cb;
-    }
-
-    .status.error {
-      background: #f8d7da;
-      color: var(--error-color);
-      border: 1px solid #f5c6cb;
-    }
-
-    .status.info {
-      background: #d1ecf1;
-      color: #0c5460;
-      border: 1px solid #bee5eb;
-    }
-
-    .transcript-area {
-      width: 100%;
-      min-height: 200px;
-      margin: 16px 0;
-      padding: 16px;
-      background: #fafafa;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      resize: vertical;
-      font-family: monospace;
-      font-size: 14px;
-      line-height: 1.6;
-      color: var(--text-color);
-    }
-
-    [data-theme="dark"] .transcript-area {
-      background: #333333;
-      color: #ffffff;
-    }
-
-    .history-list {
-      margin: 20px 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .history-item {
-      margin-bottom: 16px;
-      padding: 16px;
-      background: #f8f9fa;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-    }
-
-    [data-theme="dark"] .history-item {
-      background: #333333;
-    }
-
-    .history-meta {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 8px;
-    }
-
-    [data-theme="dark"] .history-meta {
-      color: #aaa;
-    }
-
-    .debug-info {
-      background: #fff3cd;
-      color: #856404;
-      padding: 16px;
-      margin: 16px 0;
-      border-radius: 8px;
-      border: 1px solid #ffeaa7;
-      font-family: monospace;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    [data-theme="dark"] .debug-info {
-      background: #3d3d00;
-      color: #ffff99;
-      border-color: #666600;
-    }
-
-    .loading {
-      display: inline-flex;
+      font-weight: bold;
+      text-align: center;
+      min-height: 50px;
+      display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
     }
 
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid var(--primary-color);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .fade-in {
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .file-info {
-      margin-top: 8px;
-      padding: 8px;
+    .status-info {
       background: #e3f2fd;
-      border-radius: 4px;
-      font-size: 14px;
-      color: #1565c0;
+      color: #1976d2;
+      border: 2px solid #bbdefb;
     }
 
-    [data-theme="dark"] .file-info {
-      background: #1a3a52;
-      color: #64b5f6;
+    .status-success {
+      background: #e8f5e8;
+      color: #2e7d32;
+      border: 2px solid #c8e6c9;
     }
 
-    .file-info.error {
+    .status-error {
       background: #ffebee;
       color: #c62828;
+      border: 2px solid #ffcdd2;
     }
 
-    [data-theme="dark"] .file-info.error {
-      background: #4d1f1f;
-      color: #ef5350;
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background: #f0f0f0;
+    .log {
+      background: #f5f5f5;
+      border: 1px solid #ddd;
       border-radius: 4px;
-      overflow: hidden;
-      margin: 16px 0;
-    }
-
-    [data-theme="dark"] .progress-bar {
-      background: #333333;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--primary-color);
-      transition: width 0.3s ease;
-      width: 0%;
-    }
-
-    .analysis-frame-container {
-      background: white;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      max-height: 70vh;
+      padding: 10px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 14px;
+      max-height: 200px;
       overflow-y: auto;
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    .analysis-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 2px solid var(--border-color);
-      padding-bottom: 15px;
-    }
-
-    .analysis-actions {
-      margin-top: 15px;
-      text-align: center;
-      gap: 10px;
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .analysis-container-wrapper {
-      background: var(--card-background);
-      padding: 20px;
-      border-radius: 12px;
-      margin: 20px 0;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-
-    @media (max-width: 600px) {
-      body {
-        padding: 10px;
-      }
-
-      .container {
-        padding: 16px;
-      }
-
-      .btn {
-        width: 100%;
-        margin-bottom: 8px;
-        justify-content: center;
-      }
-
-      .analysis-header {
-        flex-direction: column;
-        gap: 10px;
-        text-align: center;
-      }
-
-      .analysis-actions {
-        flex-direction: column;
-      }
-
-      .analysis-actions .btn {
-        width: 100%;
-        margin: 5px 0;
-      }
+    .clicked {
+      background: #4caf50 !important;
+      color: white !important;
     }
   </style>
 </head>
 <body>
-  <div id="debugInfo" class="debug-info hidden"></div>
-
   <div class="container">
-    <form id="uploadForm">
-      <h2>🎤 Audio Transcription</h2>
+    <h1>🧪 Button Debug Test</h1>
 
-      <div class="form-group">
-        <label for="audioFile">Audio File:</label>
-        <input type="file" id="audioFile" name="file" accept="audio/*,audio/mp4,audio/mpeg,audio/wav,audio/x-m4a,audio/aac,.m4a,.mp3,.wav,.aac,.mp4,.mov,.caf" required />
-        <div id="fileInfo" class="file-info hidden"></div>
-      </div>
+    <div id="status" class="status status-info">
+      Готов к тестированию кнопок
+    </div>
 
-      <div class="form-group">
-        <label for="prompt">Prompt (optional):</label>
-        <input type="text" id="prompt" name="prompt" placeholder="Provide context to improve accuracy..." />
-      </div>
+    <button id="testBtn1" class="btn btn-test">
+      🧪 TEST 1: Simple Alert
+    </button>
 
-      <div class="form-group">
-        <label>Options:</label>
-        <div class="checkbox-group">
-          <input type="checkbox" id="translate" name="translate" />
-          <label for="translate">Translate to English</label>
-        </div>
-      </div>
+    <button id="testBtn2" class="btn btn-test">
+      🧪 TEST 2: Change Status
+    </button>
 
-      <div class="form-group">
-        <label for="language">Language:</label>
-        <select id="language" name="language" required>
-          <option value="english" selected>English</option>
-          <option value="russian">Russian</option>
-          <option value="armenian">Armenian</option>
-        </select>
-      </div>
+    <button id="testBtn3" class="btn btn-download">
+      💾 TEST 3: Download File
+    </button>
 
-      <div class="form-group">
-        <label for="speakerMode">Number of Speakers:</label>
-        <select id="speakerMode" name="speaker_mode" required>
-          <option value="auto" selected>Detect automatically</option>
-          <option value="manual">Specify manually</option>
-        </select>
-      </div>
+    <button id="testBtn4" class="btn btn-fullscreen">
+      🔍 TEST 4: Open Window
+    </button>
 
-      <div class="form-group hidden" id="manualSpeakersGroup">
-        <label for="numSpeakers">Number of participants:</label>
-        <input type="number" id="numSpeakers" name="num_speakers" value="2" min="1" max="20" />
-      </div>
-
-      <div class="form-group">
-        <label for="outputFormat">Output Format:</label>
-        <select id="outputFormat" name="output_format">
-          <option value="markdown" selected>Markdown</option>
-          <option value="text">Plain Text</option>
-          <option value="srt">SRT Subtitles</option>
-        </select>
-      </div>
-
-      <input type="hidden" name="initData" id="initData" />
-
-      <div class="progress-bar hidden" id="progressBar">
-        <div class="progress-fill" id="progressFill"></div>
-      </div>
-
-      <button type="submit" class="btn btn-primary" id="submitBtn">
-        <span id="submitText">Upload & Transcribe</span>
-      </button>
-
-      <button type="button" id="analyzeBtn" class="btn btn-claude">
-        🧠 AI Analysis with Claude
-        <span class="new-badge">New</span>
-      </button>
-
-      <button type="button" id="showHistoryBtn" class="btn btn-secondary">
-        📋 My Transcriptions
-      </button>
-
-      <button type="button" id="debugBtn" class="btn btn-secondary">
-        🔧 Debug Info
-      </button>
-
-      <!-- TEST BUTTON -->
-      <button type="button" id="testDownloadBtn" class="btn btn-secondary">
-        🧪 Test Download
-      </button>
-
-      <div class="status hidden" id="status"></div>
-    </form>
-
-    <div id="resultContainer" class="container hidden fade-in"></div>
-    <div id="historyContainer" class="container hidden fade-in"></div>
-    <div id="analysisContainer" class="hidden fade-in"></div>
-    <div id="asyncAnalysisContainer" class="hidden fade-in"></div>
+    <div class="log" id="log">
+      <strong>Логи:</strong><br>
+      Ожидание взаимодействия...
+    </div>
   </div>
 
   <script>
-    // Constants
-    const MAX_FILE_SIZE = 100 * 1024 * 1024;
-    const SUPPORTED_TYPES = ['audio/', 'video/'];
-    const SUPPORTED_EXTENSIONS = ['.m4a', '.mp3', '.wav', '.aac', '.mp4', '.mov', '.caf'];
+    let logCount = 0;
 
-    // Global variables
-    let tg = null;
-    let currentView = 'upload';
-
-    // Store analysis data - ГЛОБАЛЬНО
-    window.currentAnalysisHTML = '<h1>Test Analysis Report</h1><p>This is a test report content.</p>';
-    window.currentAnalysisFilename = 'test_audio.mp3';
-
-    // Utility functions
-    function $(id) {
-      return document.getElementById(id);
+    function addLog(message) {
+      logCount++;
+      const log = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      log.innerHTML += '<br>' + logCount + '. [' + time + '] ' + message;
+      log.scrollTop = log.scrollHeight;
+      console.log(logCount + '. ' + message);
     }
 
-    function show(el) {
-      el.classList.remove('hidden');
+    function updateStatus(message, type) {
+      const status = document.getElementById('status');
+      status.textContent = message;
+      status.className = 'status status-' + type;
+      addLog('Status: ' + message);
     }
 
-    function hide(el) {
-      el.classList.add('hidden');
+    function markClicked(btnId) {
+      const btn = document.getElementById(btnId);
+      btn.classList.add('clicked');
+      btn.textContent = '✅ ' + btn.textContent.replace('🧪', '').replace('💾', '').replace('🔍', '').trim();
     }
 
-    // Status management
-    function showStatus(message, type, duration) {
-      type = type || 'info';
-      duration = duration || 0;
-
-      const status = $('status');
-      status.className = 'status ' + type;
-      status.innerHTML = message;
-      show(status);
-
-      if (duration > 0) {
-        setTimeout(function() { hide(status); }, duration);
-      }
+    // TEST 1: Простой alert
+    function test1() {
+      addLog('TEST 1: Simple Alert clicked');
+      updateStatus('TEST 1: Alert функция выполнена', 'success');
+      markClicked('testBtn1');
+      alert('🎉 TEST 1 РАБОТАЕТ! Кнопка реагирует на клики.');
     }
 
-    // ПРОСТАЯ ФУНКЦИЯ СКАЧИВАНИЯ - БЕЗ ЗАМЫКАНИЙ
-    function testDownload() {
-      console.log('🧪 Test download clicked!');
-      showStatus('🧪 Test download function called!', 'info', 3000);
+    // TEST 2: Изменение статуса
+    function test2() {
+      addLog('TEST 2: Change Status clicked');
+      updateStatus('TEST 2: Статус успешно изменен!', 'success');
+      markClicked('testBtn2');
+    }
+
+    // TEST 3: Скачивание файла
+    function test3() {
+      addLog('TEST 3: Download File clicked');
+      updateStatus('TEST 3: Начинаем скачивание...', 'info');
 
       try {
-        const testHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Test Report</title><style>body{font-family:Arial;padding:20px;max-width:800px;margin:0 auto;}h1{color:#2c3e50;border-bottom:3px solid #3498db;padding-bottom:10px;}p{line-height:1.6;}</style></head><body><h1>🧪 Test Analysis Report</h1><p>This is a test HTML report generated by the download function.</p><p>If you can see this file, the download function is working correctly!</p></body></html>';
+        const content = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug Test</title></head><body><h1>🧪 Debug Test File</h1><p>Если вы видите этот файл, значит скачивание работает!</p><p>Время создания: ' + new Date().toLocaleString() + '</p></body></html>';
 
-        console.log('📄 Creating blob...');
-        const blob = new Blob([testHTML], { type: 'text/html; charset=utf-8' });
+        addLog('Creating blob...');
+        const blob = new Blob([content], { type: 'text/html' });
+
+        addLog('Creating download URL...');
         const url = URL.createObjectURL(blob);
 
-        console.log('🔗 Blob URL created:', url);
+        addLog('Creating download link...');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'debug_test_' + Date.now() + '.html';
 
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = 'test_report.html';
-        downloadLink.style.display = 'none';
+        addLog('Adding link to body...');
+        document.body.appendChild(link);
 
-        console.log('🔗 Download link created:', downloadLink);
+        addLog('Clicking download link...');
+        link.click();
 
-        document.body.appendChild(downloadLink);
-        console.log('📎 Link added to body');
+        addLog('Removing link from body...');
+        document.body.removeChild(link);
 
-        downloadLink.click();
-        console.log('👆 Link clicked');
+        addLog('Revoking URL...');
+        URL.revokeObjectURL(url);
 
-        document.body.removeChild(downloadLink);
-        console.log('🗑️ Link removed from body');
+        updateStatus('TEST 3: Файл должен скачаться!', 'success');
+        markClicked('testBtn3');
+        addLog('TEST 3: Download completed successfully');
 
-        setTimeout(function() {
-          URL.revokeObjectURL(url);
-          console.log('🔄 URL revoked');
-        }, 1000);
-
-        showStatus('✅ Test download completed! Check your Downloads folder.', 'success', 5000);
       } catch (error) {
-        console.error('❌ Download error:', error);
-        showStatus('❌ Download failed: ' + error.message, 'error', 5000);
+        addLog('TEST 3 ERROR: ' + error.message);
+        updateStatus('TEST 3: Ошибка - ' + error.message, 'error');
       }
     }
 
-    // РАБОЧАЯ ФУНКЦИЯ СКАЧИВАНИЯ АНАЛИЗА
-    function downloadAnalysis() {
-      console.log('📥 Download analysis clicked!');
-
-      const htmlContent = window.currentAnalysisHTML;
-      const filename = window.currentAnalysisFilename || 'analysis.html';
-
-      console.log('📄 HTML content length:', htmlContent ? htmlContent.length : 'null');
-      console.log('📁 Filename:', filename);
-
-      if (!htmlContent) {
-        showStatus('❌ No analysis report found to download.', 'error', 3000);
-        return;
-      }
+    // TEST 4: Открытие окна
+    function test4() {
+      addLog('TEST 4: Open Window clicked');
+      updateStatus('TEST 4: Открываем новое окно...', 'info');
 
       try {
-        const fullHtmlDoc = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AI Analysis Report - ' + filename + '</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:30px;background:#f8f9fa;color:#333}.report-container{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1)}h1,h2,h3{color:#2c3e50}h1{border-bottom:3px solid #3498db;padding-bottom:10px}h2{border-left:4px solid #3498db;padding-left:15px}.highlight{background:#fff3cd;padding:3px 6px;border-radius:4px}.section{margin:25px 0;padding:20px;background:#f8f9fa;border-radius:8px}ul,ol{margin:15px 0;padding-left:25px}li{margin:8px 0}blockquote{margin:20px 0;padding:15px 20px;background:#e8f4f8;border-left:5px solid #3498db;font-style:italic}@media print{body{background:white;padding:0}.report-container{box-shadow:none}}</style></head><body><div class="report-container">' + htmlContent + '</div></body></html>';
+        const content = '<html><head><title>Debug Window</title></head><body style="font-family:Arial;padding:20px;text-align:center;"><h1>🎉 Новое окно работает!</h1><p>Если вы видите это окно, значит функция openWindow работает корректно.</p><button onclick="window.close()">Закрыть окно</button></body></html>';
 
-        console.log('📄 Full HTML doc length:', fullHtmlDoc.length);
+        addLog('Opening new window...');
+        const newWindow = window.open('', '_blank', 'width=600,height=400');
 
-        const blob = new Blob([fullHtmlDoc], { type: 'text/html; charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = filename.replace(/\.[^/.]+$/, '') + '_analysis_report.html';
-        downloadLink.style.display = 'none';
-
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-
-        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-
-        showStatus('✅ Analysis report downloaded successfully!', 'success', 3000);
-        console.log('✅ Download completed successfully');
-      } catch (error) {
-        console.error('❌ Download error:', error);
-        showStatus('❌ Download failed: ' + error.message, 'error', 5000);
-      }
-    }
-
-    // ФУНКЦИЯ ПОЛНОЭКРАННОГО ПРОСМОТРА
-    function openAnalysisFullscreen() {
-      console.log('🔍 Fullscreen clicked!');
-
-      const htmlContent = window.currentAnalysisHTML;
-
-      if (!htmlContent) {
-        showStatus('❌ No analysis report found to open.', 'error', 3000);
-        return;
-      }
-
-      try {
-        const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
         if (newWindow) {
-          const fullHtmlDoc = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AI Analysis Report</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;max-width:900px;margin:0 auto;padding:30px;background:#f8f9fa;color:#333}.report-container{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);margin-bottom:30px}h1,h2,h3{color:#2c3e50;margin-top:30px;margin-bottom:15px}h1{border-bottom:3px solid #3498db;padding-bottom:10px;font-size:2.2em}h2{border-left:4px solid #3498db;padding-left:15px;font-size:1.6em}.highlight{background:#fff3cd;padding:3px 6px;border-radius:4px;border:1px solid #ffeaa7}.section{margin:25px 0;padding:20px;background:#f8f9fa;border-radius:8px}ul,ol{margin:15px 0;padding-left:25px}li{margin:8px 0}blockquote{margin:20px 0;padding:15px 20px;background:#e8f4f8;border-left:5px solid #3498db;font-style:italic}.print-actions{text-align:center;margin:20px 0;padding:20px;background:#e3f2fd;border-radius:8px;border:1px solid #bbdefb}.print-btn{background:#2196F3;color:white;border:none;padding:12px 24px;border-radius:6px;cursor:pointer;font-size:16px;margin:0 10px;transition:background 0.3s}.print-btn:hover{background:#1976D2}@media print{body{background:white;padding:0;margin:0}.report-container{box-shadow:none;margin:0;padding:20px}.print-actions{display:none}}</style></head><body><div class="print-actions"><button class="print-btn" onclick="window.print()">🖨️ Print Report</button></div><div class="report-container">' + htmlContent + '</div></body></html>';
-
-          newWindow.document.write(fullHtmlDoc);
+          addLog('Writing content to new window...');
+          newWindow.document.write(content);
           newWindow.document.close();
           newWindow.focus();
-          console.log('✅ Fullscreen opened successfully');
+
+          updateStatus('TEST 4: Новое окно открыто!', 'success');
+          markClicked('testBtn4');
+          addLog('TEST 4: Window opened successfully');
         } else {
-          showStatus('❌ Popup blocked. Please allow popups for this site.', 'error', 3000);
+          addLog('TEST 4 ERROR: Popup blocked');
+          updateStatus('TEST 4: Popup заблокирован браузером', 'error');
         }
+
       } catch (error) {
-        console.error('❌ Fullscreen error:', error);
-        showStatus('❌ Failed to open fullscreen view.', 'error', 3000);
+        addLog('TEST 4 ERROR: ' + error.message);
+        updateStatus('TEST 4: Ошибка - ' + error.message, 'error');
       }
     }
 
-    // ПОКАЗ АНАЛИЗА С ПРОСТЫМИ INLINE ОБРАБОТЧИКАМИ
-    function showAnalysis(htmlContent, filename) {
-      console.log('🧠 Showing analysis for:', filename);
-
-      const container = $('analysisContainer');
-
-      // Сохраняем данные ПЕРЕД созданием кнопок
-      window.currentAnalysisHTML = htmlContent;
-      window.currentAnalysisFilename = filename;
-
-      container.innerHTML =
-        '<div class="analysis-container-wrapper">' +
-          '<div class="analysis-header">' +
-            '<div>' +
-              '<h2 style="margin: 0; color: var(--text-color);">🧠 AI Analysis Report</h2>' +
-              '<p style="margin: 5px 0 0 0; color: var(--text-color); opacity: 0.7;">Claude analyzed: ' + filename + '</p>' +
-            '</div>' +
-            '<button type="button" class="btn btn-secondary" onclick="showView(\'upload\')" style="margin: 0;">⬅️ Back</button>' +
-          '</div>' +
-          '<div class="analysis-frame-container">' +
-            '<iframe id="analysisFrame" style="width: 100%; min-height: 500px; border: none; border-radius: 8px;" sandbox="allow-same-origin allow-scripts" srcdoc="' + htmlContent.replace(/"/g, '&quot;') + '"></iframe>' +
-          '</div>' +
-          '<div class="analysis-actions">' +
-            '<button type="button" class="btn btn-primary" onclick="openAnalysisFullscreen()">🔍 Open Fullscreen</button>' +
-            '<button type="button" class="btn btn-secondary" onclick="downloadAnalysis()">💾 Download Report</button>' +
-            '<button type="button" class="btn btn-secondary" onclick="shareAnalysis()">📤 Share Analysis</button>' +
-          '</div>' +
-        '</div>';
-
-      showView('analysisContainer');
-      console.log('✅ Analysis view shown');
-    }
-
-    function shareAnalysis() {
-      if (navigator.share) {
-        navigator.share({
-          title: 'Speech Analysis Report',
-          text: 'Check out this AI-powered speech analysis report generated by Claude.',
-          url: window.location.href
-        }).catch(function(err) {
-          console.log('Error sharing:', err);
-        });
-      } else {
-        showStatus('✅ Sharing: Copy this URL to share', 'info', 3000);
-      }
-    }
-
-    function showView(viewName) {
-      const views = ['uploadForm', 'resultContainer', 'historyContainer', 'analysisContainer', 'asyncAnalysisContainer'];
-      views.forEach(function(view) {
-        const el = $(view);
-        if (view === viewName || (viewName === 'upload' && view === 'uploadForm')) {
-          show(el);
-        } else {
-          hide(el);
-        }
-      });
-      currentView = viewName;
-    }
-
-    // Event handlers
+    // Инициализация
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('🚀 Initializing...');
+      addLog('DOM loaded, initializing...');
 
-      if (!window.Telegram || !window.Telegram.WebApp) {
-        console.log('⚠️ Telegram WebApp not available');
-        showStatus('⚠️ Telegram WebApp not available. Testing in browser mode.', 'info');
-      } else {
-        tg = window.Telegram.WebApp;
+      // Простейшие обработчики событий
+      document.getElementById('testBtn1').addEventListener('click', test1);
+      document.getElementById('testBtn2').addEventListener('click', test2);
+      document.getElementById('testBtn3').addEventListener('click', test3);
+      document.getElementById('testBtn4').addEventListener('click', test4);
+
+      addLog('All event listeners attached');
+      updateStatus('Все готово! Нажимайте кнопки по порядку.', 'info');
+
+      // Telegram WebApp проверка
+      if (window.Telegram && window.Telegram.WebApp) {
+        addLog('Telegram WebApp detected');
+        const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-
-        if (tg.colorScheme === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
-
-        $('initData').value = tg.initData || '';
-        console.log('✅ Telegram WebApp initialized');
+      } else {
+        addLog('Telegram WebApp not available - browser mode');
       }
-
-      // ПРОСТЫЕ ОБРАБОТЧИКИ БЕЗ ЗАМЫКАНИЙ
-      $('testDownloadBtn').onclick = function() {
-        console.log('🧪 Test button clicked');
-        testDownload();
-      };
-
-      $('debugBtn').onclick = function() {
-        console.log('🔧 Debug button clicked');
-        showStatus('🔧 Debug button works! Check console for logs.', 'info', 3000);
-      };
-
-      // Тест кнопки анализа - покажем фейковый анализ
-      $('analyzeBtn').onclick = function() {
-        console.log('🧠 Analyze button clicked');
-        const testHTML = '<h1>🧠 Test Analysis Report</h1><h2>📋 Summary</h2><p>This is a test analysis report to verify that the download and fullscreen buttons work correctly.</p><h2>🔍 Key Points</h2><ul><li>Test point 1</li><li>Test point 2</li><li>Test point 3</li></ul>';
-        showAnalysis(testHTML, 'test_audio.mp3');
-      };
-
-      console.log('✅ All event handlers attached');
-      showStatus('✅ Ready! Click "Test Download" to verify download functionality.', 'success', 5000);
     });
   </script>
 </body>
