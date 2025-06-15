@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 # Static files
-app.mount("/mini_app", StaticFiles(directory="mini_app"), name="mini_app")
+app.mount("/mini_app", StaticFiles(directory="mini_app", html=True), name="mini_app")
 
 
 # Pydantic models
