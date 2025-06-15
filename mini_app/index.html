@@ -776,10 +776,20 @@
       return true;
     }
 
-    // API calls with better error handling
+    // API calls with better error handling - ИСПРАВЛЕНО: увеличен таймаут
     async function apiCall(url, options = {}) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for analysis
+
+      // Динамический таймаут в зависимости от типа запроса
+      let timeoutDuration = 60000; // 60s по умолчанию
+
+      if (url.includes('/upload') || url.includes('/analyze')) {
+        timeoutDuration = 300000; // 5 минут для загрузки и анализа
+      } else if (url.includes('/auth') || url.includes('/history')) {
+        timeoutDuration = 10000; // 10s для быстрых запросов
+      }
+
+      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
       try {
         const response = await fetch(url, {
@@ -798,7 +808,8 @@
       } catch (error) {
         clearTimeout(timeoutId);
         if (error.name === 'AbortError') {
-          throw new Error('Request timeout - please try again');
+          const minutes = Math.floor(timeoutDuration / 60000);
+          throw new Error(`Request timeout (${minutes} min) - please try with a smaller file or use async analysis`);
         }
         throw error;
       }
@@ -1307,7 +1318,7 @@
 
         } else {
           // Use sync endpoint for small files
-          showLoading(`🧠 Claude is analyzing your audio (${fileSizeMB.toFixed(1)}MB)... This may take up to 60 seconds.`);
+          showLoading(`🧠 Claude is analyzing your audio (${fileSizeMB.toFixed(1)}MB)... This may take up to 5 minutes.`);
 
           const response = await apiCall('/analyze', {
             method: 'POST',
@@ -1345,7 +1356,7 @@
       try {
         validateFile(file);
         const fileSizeMB = file.size / (1024 * 1024);
-        const analysisType = fileSizeMB > 10 ? 'Async Analysis (Large File)' : 'Quick Analysis';
+        const analysisType = fileSizeMB > 10 ? 'Async Analysis (Large File)' : 'Quick Analysis (up to 5 min)';
 
         fileInfo.innerHTML = `
           📁 ${file.name}<br>
