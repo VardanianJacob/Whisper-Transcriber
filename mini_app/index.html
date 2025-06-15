@@ -23,7 +23,6 @@
       --claude-hover: #4f46e5;
     }
 
-    /* Темная тема для Telegram */
     [data-theme="dark"] {
       --primary-color: #2196F3;
       --primary-hover: #1976D2;
@@ -379,146 +378,6 @@
       width: 0%;
     }
 
-    /* Новые стили для асинхронного анализа */
-    .async-progress-container {
-      background: var(--card-background);
-      border: 2px solid var(--claude-color);
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-      text-align: center;
-    }
-
-    .async-progress-header {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-
-    .async-progress-header h3 {
-      margin: 0;
-      color: var(--claude-color);
-    }
-
-    .progress-status {
-      font-size: 18px;
-      margin: 10px 0;
-      color: var(--text-color);
-    }
-
-    .progress-percentage {
-      font-size: 24px;
-      font-weight: bold;
-      color: var(--claude-color);
-      margin: 10px 0;
-    }
-
-    .progress-bar-async {
-      width: 100%;
-      height: 12px;
-      background: #f0f0f0;
-      border-radius: 6px;
-      overflow: hidden;
-      margin: 15px 0;
-      position: relative;
-    }
-
-    [data-theme="dark"] .progress-bar-async {
-      background: #333333;
-    }
-
-    .progress-fill-async {
-      height: 100%;
-      background: linear-gradient(90deg, var(--claude-color), var(--claude-hover));
-      transition: width 0.5s ease;
-      width: 0%;
-      position: relative;
-    }
-
-    .progress-fill-async::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-      animation: shimmer 2s infinite;
-    }
-
-    @keyframes shimmer {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(100%); }
-    }
-
-    .estimated-time {
-      font-size: 14px;
-      color: #666;
-      margin-top: 10px;
-    }
-
-    [data-theme="dark"] .estimated-time {
-      color: #aaa;
-    }
-
-    .status-steps {
-      display: flex;
-      justify-content: space-between;
-      margin: 20px 0;
-      font-size: 12px;
-    }
-
-    .status-step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex: 1;
-      position: relative;
-    }
-
-    .status-step::after {
-      content: '';
-      position: absolute;
-      top: 15px;
-      left: 50%;
-      width: 100%;
-      height: 2px;
-      background: #ddd;
-      z-index: 0;
-    }
-
-    .status-step:last-child::after {
-      display: none;
-    }
-
-    .status-step-icon {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: #ddd;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      margin-bottom: 5px;
-      position: relative;
-      z-index: 1;
-      transition: all 0.3s ease;
-    }
-
-    .status-step.active .status-step-icon {
-      background: var(--claude-color);
-      color: white;
-    }
-
-    .status-step.completed .status-step-icon {
-      background: var(--success-color);
-      color: white;
-    }
-
-    /* Стили для анализа Claude */
     .analysis-frame-container {
       background: white;
       border-radius: 8px;
@@ -582,15 +441,6 @@
       .analysis-actions .btn {
         width: 100%;
         margin: 5px 0;
-      }
-
-      .status-steps {
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .status-step::after {
-        display: none;
       }
     }
   </style>
@@ -675,6 +525,11 @@
         🔧 Debug Info
       </button>
 
+      <!-- TEST BUTTON -->
+      <button type="button" id="testDownloadBtn" class="btn btn-secondary">
+        🧪 Test Download
+      </button>
+
       <div class="status hidden" id="status"></div>
     </form>
 
@@ -689,18 +544,14 @@
     const MAX_FILE_SIZE = 100 * 1024 * 1024;
     const SUPPORTED_TYPES = ['audio/', 'video/'];
     const SUPPORTED_EXTENSIONS = ['.m4a', '.mp3', '.wav', '.aac', '.mp4', '.mov', '.caf'];
-    const SYNC_ANALYSIS_LIMIT = 10 * 1024 * 1024;
 
     // Global variables
     let tg = null;
     let currentView = 'upload';
-    let asyncTaskId = null;
-    let pollingInterval = null;
-    let lastAnalysisFile = null;
 
-    // Store analysis data
-    window.currentAnalysisHTML = null;
-    window.currentAnalysisFilename = null;
+    // Store analysis data - ГЛОБАЛЬНО
+    window.currentAnalysisHTML = '<h1>Test Analysis Report</h1><p>This is a test report content.</p>';
+    window.currentAnalysisFilename = 'test_audio.mp3';
 
     // Utility functions
     function $(id) {
@@ -713,57 +564,6 @@
 
     function hide(el) {
       el.classList.add('hidden');
-    }
-
-    function formatFileSize(bytes) {
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      if (bytes === 0) return '0 Bytes';
-      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
-      return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-    }
-
-    // Simple HTML creation functions
-    function createDiv(className, innerHTML) {
-      const div = document.createElement('div');
-      if (className) div.className = className;
-      if (innerHTML) div.innerHTML = innerHTML;
-      return div;
-    }
-
-    function createButton(className, text, onclick) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = className;
-      btn.innerHTML = text;
-      if (onclick) btn.onclick = onclick;
-      return btn;
-    }
-
-    // Modern clipboard API with fallback
-    async function copyToClipboard(text) {
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          await navigator.clipboard.writeText(text);
-          return true;
-        } catch (err) {
-          console.warn('Clipboard API failed:', err);
-        }
-      }
-
-      try {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        const success = document.execCommand('copy');
-        document.body.removeChild(textarea);
-        return success;
-      } catch (err) {
-        console.error('Copy fallback failed:', err);
-        return false;
-      }
     }
 
     // Status management
@@ -781,186 +581,68 @@
       }
     }
 
-    function showLoading(message) {
-      message = message || 'Processing...';
-      showStatus('<div class="loading"><div class="spinner"></div>' + message + '</div>', 'info');
-    }
-
-    // File validation
-    function validateFile(file) {
-      if (!file) {
-        throw new Error('No file selected');
-      }
-
-      if (file.size === 0) {
-        throw new Error('File is empty');
-      }
-
-      if (file.size > MAX_FILE_SIZE) {
-        throw new Error('File too large (' + formatFileSize(file.size) + '). Maximum size is ' + formatFileSize(MAX_FILE_SIZE));
-      }
-
-      const isSupported = SUPPORTED_TYPES.some(function(type) {
-        return file.type.startsWith(type);
-      }) || SUPPORTED_EXTENSIONS.some(function(ext) {
-        return file.name.toLowerCase().endsWith(ext);
-      });
-
-      if (!isSupported) {
-        throw new Error('Unsupported file type: ' + (file.type || 'unknown') + '. Please upload an audio or video file.');
-      }
-
-      return true;
-    }
-
-    // API calls
-    async function apiCall(url, options) {
-      options = options || {};
-
-      const controller = new AbortController();
-      let timeoutDuration = 60000;
-
-      if (url.includes('/upload') || url.includes('/analyze')) {
-        timeoutDuration = 300000;
-      } else if (url.includes('/auth') || url.includes('/history')) {
-        timeoutDuration = 10000;
-      }
-
-      const timeoutId = setTimeout(function() {
-        controller.abort();
-      }, timeoutDuration);
+    // ПРОСТАЯ ФУНКЦИЯ СКАЧИВАНИЯ - БЕЗ ЗАМЫКАНИЙ
+    function testDownload() {
+      console.log('🧪 Test download clicked!');
+      showStatus('🧪 Test download function called!', 'info', 3000);
 
       try {
-        options.signal = controller.signal;
-        const response = await fetch(url, options);
+        const testHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Test Report</title><style>body{font-family:Arial;padding:20px;max-width:800px;margin:0 auto;}h1{color:#2c3e50;border-bottom:3px solid #3498db;padding-bottom:10px;}p{line-height:1.6;}</style></head><body><h1>🧪 Test Analysis Report</h1><p>This is a test HTML report generated by the download function.</p><p>If you can see this file, the download function is working correctly!</p></body></html>';
 
-        clearTimeout(timeoutId);
+        console.log('📄 Creating blob...');
+        const blob = new Blob([testHTML], { type: 'text/html; charset=utf-8' });
+        const url = URL.createObjectURL(blob);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error('HTTP ' + response.status + ': ' + errorText);
-        }
+        console.log('🔗 Blob URL created:', url);
 
-        return response;
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = 'test_report.html';
+        downloadLink.style.display = 'none';
+
+        console.log('🔗 Download link created:', downloadLink);
+
+        document.body.appendChild(downloadLink);
+        console.log('📎 Link added to body');
+
+        downloadLink.click();
+        console.log('👆 Link clicked');
+
+        document.body.removeChild(downloadLink);
+        console.log('🗑️ Link removed from body');
+
+        setTimeout(function() {
+          URL.revokeObjectURL(url);
+          console.log('🔄 URL revoked');
+        }, 1000);
+
+        showStatus('✅ Test download completed! Check your Downloads folder.', 'success', 5000);
       } catch (error) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-          const minutes = Math.floor(timeoutDuration / 60000);
-          throw new Error('Request timeout (' + minutes + ' min) - please try with a smaller file or use async analysis');
-        }
-        throw error;
+        console.error('❌ Download error:', error);
+        showStatus('❌ Download failed: ' + error.message, 'error', 5000);
       }
     }
 
-    // Authentication
-    async function authenticate() {
-      const initData = $('initData').value;
-      if (!initData) {
-        throw new Error('No authorization data available. Please restart from Telegram.');
-      }
+    // РАБОЧАЯ ФУНКЦИЯ СКАЧИВАНИЯ АНАЛИЗА
+    function downloadAnalysis() {
+      console.log('📥 Download analysis clicked!');
 
-      const response = await apiCall('/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ initData: initData })
-      });
-
-      const result = await response.json();
-      return result.access_token;
-    }
-
-    // View management
-    function showView(viewName) {
-      const views = ['uploadForm', 'resultContainer', 'historyContainer', 'analysisContainer', 'asyncAnalysisContainer'];
-      views.forEach(function(view) {
-        const el = $(view);
-        if (view === viewName || (viewName === 'upload' && view === 'uploadForm')) {
-          show(el);
-        } else {
-          hide(el);
-        }
-      });
-      currentView = viewName;
-    }
-
-    // Simple analysis functions without complex string concatenation
-    function showAnalysis(htmlContent, filename) {
-      const container = $('analysisContainer');
-
-      // Clear container
-      container.innerHTML = '';
-
-      // Create wrapper
-      const wrapper = createDiv('analysis-container-wrapper');
-
-      // Create header
-      const header = createDiv('analysis-header');
-      const headerInfo = createDiv();
-      headerInfo.innerHTML = '<h2 style="margin: 0; color: var(--text-color);">🧠 AI Analysis Report</h2><p style="margin: 5px 0 0 0; color: var(--text-color); opacity: 0.7;">Claude analyzed: ' + filename + '</p>';
-      const backBtn = createButton('btn btn-secondary', '⬅️ Back', function() { showView('upload'); });
-      backBtn.style.margin = '0';
-
-      header.appendChild(headerInfo);
-      header.appendChild(backBtn);
-
-      // Create iframe container
-      const frameContainer = createDiv('analysis-frame-container');
-      const iframe = document.createElement('iframe');
-      iframe.id = 'analysisFrame';
-      iframe.style.cssText = 'width: 100%; min-height: 500px; border: none; border-radius: 8px;';
-      iframe.sandbox = 'allow-same-origin allow-scripts';
-      iframe.srcdoc = htmlContent;
-      frameContainer.appendChild(iframe);
-
-      // Create actions
-      const actions = createDiv('analysis-actions');
-
-      const fullscreenBtn = createButton('btn btn-primary', '🔍 Open Fullscreen', openAnalysisFullscreen);
-      const downloadBtn = createButton('btn btn-secondary', '💾 Download Report', function() { downloadAnalysis(filename); });
-      const shareBtn = createButton('btn btn-secondary', '📤 Share Analysis', shareAnalysis);
-
-      actions.appendChild(fullscreenBtn);
-      actions.appendChild(downloadBtn);
-      actions.appendChild(shareBtn);
-
-      // Assemble
-      wrapper.appendChild(header);
-      wrapper.appendChild(frameContainer);
-      wrapper.appendChild(actions);
-      container.appendChild(wrapper);
-
-      // Store data
-      window.currentAnalysisHTML = htmlContent;
-      window.currentAnalysisFilename = filename;
-
-      // Auto-resize iframe
-      iframe.onload = function() {
-        try {
-          const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-          if (iframeDocument && iframeDocument.body) {
-            const height = iframeDocument.body.scrollHeight;
-            iframe.style.height = Math.min(height + 50, window.innerHeight * 0.7) + 'px';
-          }
-        } catch (e) {
-          iframe.style.height = '500px';
-        }
-      };
-
-      showView('analysisContainer');
-    }
-
-    // Simple download function
-    function downloadAnalysis(filename) {
       const htmlContent = window.currentAnalysisHTML;
+      const filename = window.currentAnalysisFilename || 'analysis.html';
+
+      console.log('📄 HTML content length:', htmlContent ? htmlContent.length : 'null');
+      console.log('📁 Filename:', filename);
 
       if (!htmlContent) {
         showStatus('❌ No analysis report found to download.', 'error', 3000);
         return;
       }
 
-      const fullHtmlDoc = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AI Analysis Report - ' + filename + '</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:30px;background:#f8f9fa;color:#333}.report-container{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1)}h1,h2,h3{color:#2c3e50}h1{border-bottom:3px solid #3498db;padding-bottom:10px}h2{border-left:4px solid #3498db;padding-left:15px}.highlight{background:#fff3cd;padding:3px 6px;border-radius:4px}.section{margin:25px 0;padding:20px;background:#f8f9fa;border-radius:8px}ul,ol{margin:15px 0;padding-left:25px}li{margin:8px 0}blockquote{margin:20px 0;padding:15px 20px;background:#e8f4f8;border-left:5px solid #3498db;font-style:italic}@media print{body{background:white;padding:0}.report-container{box-shadow:none}}</style></head><body><div class="report-container">' + htmlContent + '</div></body></html>';
-
       try {
+        const fullHtmlDoc = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AI Analysis Report - ' + filename + '</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:30px;background:#f8f9fa;color:#333}.report-container{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1)}h1,h2,h3{color:#2c3e50}h1{border-bottom:3px solid #3498db;padding-bottom:10px}h2{border-left:4px solid #3498db;padding-left:15px}.highlight{background:#fff3cd;padding:3px 6px;border-radius:4px}.section{margin:25px 0;padding:20px;background:#f8f9fa;border-radius:8px}ul,ol{margin:15px 0;padding-left:25px}li{margin:8px 0}blockquote{margin:20px 0;padding:15px 20px;background:#e8f4f8;border-left:5px solid #3498db;font-style:italic}@media print{body{background:white;padding:0}.report-container{box-shadow:none}}</style></head><body><div class="report-container">' + htmlContent + '</div></body></html>';
+
+        console.log('📄 Full HTML doc length:', fullHtmlDoc.length);
+
         const blob = new Blob([fullHtmlDoc], { type: 'text/html; charset=utf-8' });
         const url = URL.createObjectURL(blob);
 
@@ -976,15 +658,17 @@
         setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
 
         showStatus('✅ Analysis report downloaded successfully!', 'success', 3000);
+        console.log('✅ Download completed successfully');
       } catch (error) {
-        console.error('Download error:', error);
-        showStatus('❌ Download failed. Try opening in fullscreen and saving manually.', 'error', 5000);
-        setTimeout(openAnalysisFullscreen, 1500);
+        console.error('❌ Download error:', error);
+        showStatus('❌ Download failed: ' + error.message, 'error', 5000);
       }
     }
 
-    // Simple fullscreen function
+    // ФУНКЦИЯ ПОЛНОЭКРАННОГО ПРОСМОТРА
     function openAnalysisFullscreen() {
+      console.log('🔍 Fullscreen clicked!');
+
       const htmlContent = window.currentAnalysisHTML;
 
       if (!htmlContent) {
@@ -1000,13 +684,47 @@
           newWindow.document.write(fullHtmlDoc);
           newWindow.document.close();
           newWindow.focus();
+          console.log('✅ Fullscreen opened successfully');
         } else {
           showStatus('❌ Popup blocked. Please allow popups for this site.', 'error', 3000);
         }
       } catch (error) {
-        console.error('Fullscreen open error:', error);
+        console.error('❌ Fullscreen error:', error);
         showStatus('❌ Failed to open fullscreen view.', 'error', 3000);
       }
+    }
+
+    // ПОКАЗ АНАЛИЗА С ПРОСТЫМИ INLINE ОБРАБОТЧИКАМИ
+    function showAnalysis(htmlContent, filename) {
+      console.log('🧠 Showing analysis for:', filename);
+
+      const container = $('analysisContainer');
+
+      // Сохраняем данные ПЕРЕД созданием кнопок
+      window.currentAnalysisHTML = htmlContent;
+      window.currentAnalysisFilename = filename;
+
+      container.innerHTML =
+        '<div class="analysis-container-wrapper">' +
+          '<div class="analysis-header">' +
+            '<div>' +
+              '<h2 style="margin: 0; color: var(--text-color);">🧠 AI Analysis Report</h2>' +
+              '<p style="margin: 5px 0 0 0; color: var(--text-color); opacity: 0.7;">Claude analyzed: ' + filename + '</p>' +
+            '</div>' +
+            '<button type="button" class="btn btn-secondary" onclick="showView(\'upload\')" style="margin: 0;">⬅️ Back</button>' +
+          '</div>' +
+          '<div class="analysis-frame-container">' +
+            '<iframe id="analysisFrame" style="width: 100%; min-height: 500px; border: none; border-radius: 8px;" sandbox="allow-same-origin allow-scripts" srcdoc="' + htmlContent.replace(/"/g, '&quot;') + '"></iframe>' +
+          '</div>' +
+          '<div class="analysis-actions">' +
+            '<button type="button" class="btn btn-primary" onclick="openAnalysisFullscreen()">🔍 Open Fullscreen</button>' +
+            '<button type="button" class="btn btn-secondary" onclick="downloadAnalysis()">💾 Download Report</button>' +
+            '<button type="button" class="btn btn-secondary" onclick="shareAnalysis()">📤 Share Analysis</button>' +
+          '</div>' +
+        '</div>';
+
+      showView('analysisContainer');
+      console.log('✅ Analysis view shown');
     }
 
     function shareAnalysis() {
@@ -1019,292 +737,64 @@
           console.log('Error sharing:', err);
         });
       } else {
-        copyToClipboard(window.location.href).then(function(success) {
-          if (success) {
-            showStatus('✅ Link copied to clipboard!', 'success', 3000);
-          } else {
-            showStatus('❌ Sharing not supported on this device.', 'error', 3000);
-          }
-        });
+        showStatus('✅ Sharing: Copy this URL to share', 'info', 3000);
       }
     }
 
-    // Simple history function
-    async function showHistory() {
-      showLoading('Loading your transcriptions...');
-
-      try {
-        const token = await authenticate();
-        const response = await apiCall('/history', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-
-        const history = await response.json();
-        const container = $('historyContainer');
-
-        container.innerHTML = '';
-
-        if (!Array.isArray(history) || history.length === 0) {
-          container.innerHTML = '<h2>📋 My Transcriptions</h2><div class="status info">No transcriptions found. Upload your first audio file!</div><button type="button" class="btn btn-primary" onclick="showView(\'upload\')">🎤 Upload Audio</button>';
+    function showView(viewName) {
+      const views = ['uploadForm', 'resultContainer', 'historyContainer', 'analysisContainer', 'asyncAnalysisContainer'];
+      views.forEach(function(view) {
+        const el = $(view);
+        if (view === viewName || (viewName === 'upload' && view === 'uploadForm')) {
+          show(el);
         } else {
-          const title = document.createElement('h2');
-          title.textContent = '📋 My Transcriptions';
-          container.appendChild(title);
-
-          const list = document.createElement('ul');
-          list.className = 'history-list';
-
-          history.forEach(function(item, index) {
-            const date = new Date(item.created_at).toLocaleString();
-            const isAnalysis = item.output_format === 'html_analysis';
-            const icon = isAnalysis ? '🧠' : '📄';
-            const type = isAnalysis ? 'AI Analysis' : 'Transcription';
-
-            const listItem = document.createElement('li');
-            listItem.className = 'history-item';
-
-            const meta = createDiv('history-meta', date + ' • ' + item.filename + ' • ' + type);
-            const btn = createButton('btn btn-secondary', icon + ' View ' + type, function() {
-              showHistoryItem(index);
-            });
-
-            listItem.appendChild(meta);
-            listItem.appendChild(btn);
-            list.appendChild(listItem);
-          });
-
-          container.appendChild(list);
-
-          const backBtn = createButton('btn btn-secondary', '⬅️ Back to Upload', function() {
-            showView('upload');
-          });
-          container.appendChild(backBtn);
-
-          window.historyData = history;
-        }
-
-        showView('historyContainer');
-        hide($('status'));
-
-      } catch (error) {
-        showStatus('❌ Failed to load history: ' + error.message, 'error');
-      }
-    }
-
-    function showHistoryItem(index) {
-      const item = window.historyData[index];
-      const date = new Date(item.created_at).toLocaleString();
-
-      if (item.output_format === 'html_analysis') {
-        showAnalysis(item.transcript, item.filename);
-      } else {
-        showResult(item.transcript, item.filename, item.output_format, 'Transcription from ' + date);
-      }
-    }
-
-    function showResult(transcript, filename, outputFormat, message) {
-      const container = $('resultContainer');
-      container.innerHTML = '';
-
-      const title = document.createElement('h2');
-      title.textContent = '✅ Transcription Complete';
-      container.appendChild(title);
-
-      const status = createDiv('status success', message || 'Your audio has been successfully transcribed.');
-      container.appendChild(status);
-
-      const formGroup = createDiv('form-group');
-      const label = document.createElement('label');
-      label.textContent = 'File: ' + filename + ' (' + outputFormat + ')';
-      formGroup.appendChild(label);
-
-      const textarea = document.createElement('textarea');
-      textarea.className = 'transcript-area';
-      textarea.readOnly = true;
-      textarea.id = 'transcriptText';
-      textarea.value = transcript;
-      formGroup.appendChild(textarea);
-      container.appendChild(formGroup);
-
-      const copyBtn = createButton('btn btn-success', '📋 Copy Transcript', async function() {
-        const success = await copyToClipboard(transcript);
-        if (success) {
-          copyBtn.innerHTML = '✅ Copied!';
-          copyBtn.classList.add('btn-success');
-          setTimeout(function() {
-            copyBtn.innerHTML = '📋 Copy Transcript';
-            copyBtn.classList.remove('btn-success');
-          }, 2000);
-        } else {
-          showStatus('Copy failed. Please select the text manually.', 'error', 3000);
+          hide(el);
         }
       });
-      copyBtn.id = 'copyBtn';
-      container.appendChild(copyBtn);
-
-      const newBtn = createButton('btn btn-secondary', '⬅️ New Transcription', function() {
-        showView('upload');
-      });
-      container.appendChild(newBtn);
-
-      showView('resultContainer');
+      currentView = viewName;
     }
 
     // Event handlers
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('Initializing Telegram WebApp...');
+      console.log('🚀 Initializing...');
 
       if (!window.Telegram || !window.Telegram.WebApp) {
-        showStatus('❌ Telegram WebApp not available. Please open from Telegram bot.', 'error');
-        return;
-      }
-
-      tg = window.Telegram.WebApp;
-      tg.ready();
-      tg.expand();
-
-      if (tg.colorScheme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.documentElement.style.setProperty('--background-color', tg.themeParams.bg_color || '#1a1a1a');
-        document.documentElement.style.setProperty('--card-background', tg.themeParams.secondary_bg_color || '#2a2a2a');
-        document.documentElement.style.setProperty('--text-color', tg.themeParams.text_color || '#ffffff');
-      }
-
-      $('initData').value = tg.initData || '';
-
-      if (tg.initData) {
-        showStatus('✅ Ready to transcribe your audio files!', 'success', 3000);
+        console.log('⚠️ Telegram WebApp not available');
+        showStatus('⚠️ Telegram WebApp not available. Testing in browser mode.', 'info');
       } else {
-        showStatus('⚠️ No Telegram data found. Please open from Telegram bot.', 'error');
+        tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        if (tg.colorScheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+
+        $('initData').value = tg.initData || '';
+        console.log('✅ Telegram WebApp initialized');
       }
 
-      console.log('WebApp initialized successfully');
+      // ПРОСТЫЕ ОБРАБОТЧИКИ БЕЗ ЗАМЫКАНИЙ
+      $('testDownloadBtn').onclick = function() {
+        console.log('🧪 Test button clicked');
+        testDownload();
+      };
+
+      $('debugBtn').onclick = function() {
+        console.log('🔧 Debug button clicked');
+        showStatus('🔧 Debug button works! Check console for logs.', 'info', 3000);
+      };
+
+      // Тест кнопки анализа - покажем фейковый анализ
+      $('analyzeBtn').onclick = function() {
+        console.log('🧠 Analyze button clicked');
+        const testHTML = '<h1>🧠 Test Analysis Report</h1><h2>📋 Summary</h2><p>This is a test analysis report to verify that the download and fullscreen buttons work correctly.</p><h2>🔍 Key Points</h2><ul><li>Test point 1</li><li>Test point 2</li><li>Test point 3</li></ul>';
+        showAnalysis(testHTML, 'test_audio.mp3');
+      };
+
+      console.log('✅ All event handlers attached');
+      showStatus('✅ Ready! Click "Test Download" to verify download functionality.', 'success', 5000);
     });
-
-    // Button event handlers
-    $('showHistoryBtn').onclick = showHistory;
-    $('analyzeBtn').onclick = function() {
-      showStatus('🚧 Analysis function temporarily disabled for debugging.', 'info', 5000);
-    };
-
-    // Form handlers
-    $('audioFile').onchange = function(e) {
-      const file = e.target.files[0];
-      const fileInfo = $('fileInfo');
-
-      if (!file) {
-        hide(fileInfo);
-        return;
-      }
-
-      try {
-        validateFile(file);
-        const fileSizeMB = file.size / (1024 * 1024);
-        const analysisType = fileSizeMB > 10 ? 'Async Analysis (Large File)' : 'Quick Analysis (up to 5 min)';
-
-        fileInfo.innerHTML = '📁 ' + file.name + '<br>📊 ' + formatFileSize(file.size) + '<br>🎵 ' + (file.type || 'Unknown type') + '<br>🧠 ' + analysisType;
-        fileInfo.className = 'file-info';
-        show(fileInfo);
-      } catch (error) {
-        fileInfo.innerHTML = '❌ ' + error.message;
-        fileInfo.className = 'file-info error';
-        show(fileInfo);
-      }
-    };
-
-    $('speakerMode').onchange = function(e) {
-      const manualGroup = $('manualSpeakersGroup');
-      if (e.target.value === 'manual') {
-        show(manualGroup);
-      } else {
-        hide(manualGroup);
-      }
-    };
-
-    $('debugBtn').onclick = function() {
-      const debugInfo = $('debugInfo');
-      const isVisible = !debugInfo.classList.contains('hidden');
-
-      if (isVisible) {
-        hide(debugInfo);
-        $('debugBtn').innerHTML = '🔧 Debug Info';
-      } else {
-        const initData = $('initData').value;
-        debugInfo.innerHTML = '<strong>Debug Information:</strong><br><strong>initData length:</strong> ' + initData.length + '<br><strong>initData:</strong> ' + initData.substring(0, 100) + (initData.length > 100 ? '...' : '') + '<br><strong>User ID:</strong> ' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'unknown') + '<br><strong>Username:</strong> ' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.username : 'unknown') + '<br><strong>WebApp version:</strong> ' + (tg ? tg.version : 'unknown') + '<br><strong>Platform:</strong> ' + (tg ? tg.platform : 'unknown') + '<br><strong>Color scheme:</strong> ' + (tg ? tg.colorScheme : 'unknown');
-        show(debugInfo);
-        $('debugBtn').innerHTML = '🔧 Hide Debug';
-      }
-    };
-
-    $('uploadForm').onsubmit = async function(e) {
-      e.preventDefault();
-
-      const submitBtn = $('submitBtn');
-      const submitText = $('submitText');
-      const progressBar = $('progressBar');
-      const progressFill = $('progressFill');
-
-      try {
-        const fileInput = $('audioFile');
-        const file = fileInput.files[0];
-        validateFile(file);
-
-        submitBtn.disabled = true;
-        show(progressBar);
-
-        submitText.textContent = 'Authenticating...';
-        progressFill.style.width = '20%';
-
-        const token = await authenticate();
-
-        submitText.textContent = 'Preparing upload...';
-        progressFill.style.width = '40%';
-
-        const formData = new FormData(e.target);
-        formData.delete('initData');
-        formData.set('speaker_labels', 'true');
-
-        const speakerMode = formData.get('speaker_mode');
-        formData.set('min_speakers', '1');
-
-        if (speakerMode === 'manual') {
-          const numSpeakers = formData.get('num_speakers') || '2';
-          formData.set('max_speakers', numSpeakers);
-        } else {
-          formData.set('max_speakers', '8');
-        }
-
-        formData.delete('speaker_mode');
-        formData.delete('num_speakers');
-
-        submitText.textContent = 'Uploading & transcribing...';
-        progressFill.style.width = '60%';
-
-        const response = await apiCall('/upload', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + token },
-          body: formData
-        });
-
-        progressFill.style.width = '100%';
-
-        const result = await response.json();
-
-        if (result.transcript) {
-          showResult(result.transcript, result.filename, result.output_format, result.message);
-        } else {
-          showStatus('✅ ' + (result.message || 'Upload successful!'), 'success');
-        }
-
-      } catch (error) {
-        showStatus('❌ ' + error.message, 'error');
-      } finally {
-        submitBtn.disabled = false;
-        submitText.textContent = 'Upload & Transcribe';
-        hide(progressBar);
-        progressFill.style.width = '0%';
-      }
-    };
   </script>
 </body>
 </html>
