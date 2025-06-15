@@ -1098,6 +1098,9 @@
             <button type="button" class="btn btn-secondary" onclick="downloadAnalysis('${filename}')">
               💾 Download Report
             </button>
+            <button type="button" class="btn btn-secondary" onclick="copyAnalysisHTML()">
+              📋 Copy HTML
+            </button>
             <button type="button" class="btn btn-secondary" onclick="shareAnalysis()">
               📤 Share Analysis
             </button>
@@ -1140,24 +1143,60 @@
       }
     }
 
-    // Функция для скачивания отчета
+    // ИСПРАВЛЕННАЯ функция для скачивания отчета с fallback
     function downloadAnalysis(filename) {
       const iframe = document.getElementById('analysisFrame');
       if (iframe && iframe.srcdoc) {
         try {
-          const blob = new Blob([iframe.srcdoc], { type: 'text/html' });
+          // Метод 1: Стандартная загрузка через Blob
+          const blob = new Blob([iframe.srcdoc], { type: 'text/html; charset=utf-8' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
           a.download = `${filename.replace(/\.[^/.]+$/, "")}_analysis.html`;
+          a.style.display = 'none';
+
+          // Добавляем в DOM, кликаем и удаляем
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+
+          // Очищаем URL через небольшую задержку
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+
           showStatus('✅ Report downloaded successfully!', 'success', 3000);
         } catch (error) {
-          showStatus('❌ Download failed. Please try again.', 'error', 3000);
+          console.error('Download error:', error);
+
+          // Метод 2: Fallback - копирование HTML в буфер обмена
+          copyToClipboard(iframe.srcdoc).then(success => {
+            if (success) {
+              showStatus('📋 HTML copied to clipboard! Create .html file and paste content to save.', 'info', 5000);
+            } else {
+              // Метод 3: Последний fallback - открытие в новом окне
+              showStatus('❌ Download failed. Opening in fullscreen - use Ctrl+S to save manually.', 'error', 5000);
+              setTimeout(() => openAnalysisFullscreen(), 1000);
+            }
+          });
         }
+      } else {
+        showStatus('❌ No analysis report found to download.', 'error', 3000);
+      }
+    }
+
+    // Новая функция для копирования HTML
+    function copyAnalysisHTML() {
+      const iframe = document.getElementById('analysisFrame');
+      if (iframe && iframe.srcdoc) {
+        copyToClipboard(iframe.srcdoc).then(success => {
+          if (success) {
+            showStatus('📋 HTML copied to clipboard! Create .html file and paste to save.', 'success', 5000);
+          } else {
+            showStatus('❌ Copy failed. Try using the Download button.', 'error', 3000);
+          }
+        });
+      } else {
+        showStatus('❌ No analysis report found to copy.', 'error', 3000);
       }
     }
 
