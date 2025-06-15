@@ -1,23 +1,20 @@
-# 📦 Include base dependencies
+# Include base dependencies
 -r base.txt
 
-# 🚀 Production Server
+# Production Server
 gunicorn==23.0.0
 
-# 📊 Monitoring & Metrics
+# Monitoring & Metrics
 prometheus-client==0.21.1
 
-# 📝 Structured Logging
+# Structured Logging
 structlog==25.4.0
 
-# 🛡️ Security Headers
+# Security Headers
 secure==0.3.0
 
-# 📈 Performance
+# Performance
 orjson==3.10.17
 
-# 🔒 Additional Security
+# Additional Security
 cryptography==43.0.3
-
-# 🧠 Claude API Integration
-aiohttp>=3.8.0

@@ -1,26 +1,26 @@
-# 📦 Include base dependencies
+# Include base dependencies
 -r base.txt
 
-# 🧪 Core Testing
+# Core Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0
 pytest-cov==6.0.0
 pytest-mock==3.14.0
 pytest-xdist==3.6.0
 
-# 🌐 HTTP Testing
+# HTTP Testing
 httpx==0.28.1
 
-# 📊 Coverage
+# Coverage
 coverage==7.6.9
 
-# 🔧 Testing Utilities
+# Testing Utilities
 factory-boy==3.3.1
 faker==33.3.0
 
-# 🎯 Performance Testing
+# Performance Testing
 pytest-benchmark==4.0.0
 
-# 📝 Test Reporting
+# Test Reporting
 pytest-html==4.1.1
 pytest-json-report==1.5.0
