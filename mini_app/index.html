@@ -696,6 +696,11 @@
     let currentView = 'upload';
     let asyncTaskId = null;
     let pollingInterval = null;
+    let lastAnalysisFile = null;
+
+    // Глобальные переменные для хранения данных анализа
+    window.currentAnalysisHTML = null;
+    window.currentAnalysisFilename = null;
 
     // Utility functions
     const $ = (id) => document.getElementById(id);
@@ -1057,8 +1062,6 @@
     }
 
     // Retry last analysis (store file data for retry)
-    let lastAnalysisFile = null;
-
     function retryLastAnalysis() {
       if (lastAnalysisFile) {
         performClaudeAnalysis(lastAnalysisFile);
@@ -1067,7 +1070,7 @@
       }
     }
 
-    // Improved Claude analysis display
+    // ИСПРАВЛЕННАЯ функция показа анализа - убрана кнопка Copy HTML
     function showAnalysis(htmlContent, filename) {
       const container = $('analysisContainer');
 
@@ -1098,9 +1101,6 @@
             <button type="button" class="btn btn-secondary" onclick="downloadAnalysis('${filename}')">
               💾 Download Report
             </button>
-            <button type="button" class="btn btn-secondary" onclick="copyAnalysisHTML()">
-              📋 Copy HTML
-            </button>
             <button type="button" class="btn btn-secondary" onclick="shareAnalysis()">
               📤 Share Analysis
             </button>
@@ -1111,6 +1111,10 @@
       // Безопасно вставляем HTML в iframe
       const iframe = document.getElementById('analysisFrame');
       iframe.srcdoc = htmlContent;
+
+      // Store HTML content globally for download function
+      window.currentAnalysisHTML = htmlContent;
+      window.currentAnalysisFilename = filename;
 
       // Автоматически подстраиваем высоту iframe
       iframe.onload = function() {
@@ -1129,74 +1133,248 @@
       showView('analysisContainer');
     }
 
-    // Функция для открытия анализа в полном экране
+    // ИСПРАВЛЕННАЯ функция для открытия в полном экране
     function openAnalysisFullscreen() {
-      const iframe = document.getElementById('analysisFrame');
-      if (iframe && iframe.srcdoc) {
-        const newWindow = window.open('', '_blank');
+      const htmlContent = window.currentAnalysisHTML;
+
+      if (!htmlContent) {
+        showStatus('❌ No analysis report found to open.', 'error', 3000);
+        return;
+      }
+
+      try {
+        const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
         if (newWindow) {
-          newWindow.document.write(iframe.srcdoc);
+          // Создаем полноценный HTML документ с улучшенными стилями
+          const fullHtmlDoc = `
+            <!DOCTYPE html>
+            <html lang="ru">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>AI Analysis Report - ${window.currentAnalysisFilename || 'Audio Transcription'}</title>
+              <style>
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  line-height: 1.6;
+                  max-width: 900px;
+                  margin: 0 auto;
+                  padding: 30px;
+                  background: #f8f9fa;
+                  color: #333;
+                }
+                .report-container {
+                  background: white;
+                  padding: 40px;
+                  border-radius: 12px;
+                  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                  margin-bottom: 30px;
+                }
+                h1, h2, h3 {
+                  color: #2c3e50;
+                  margin-top: 30px;
+                  margin-bottom: 15px;
+                }
+                h1 {
+                  border-bottom: 3px solid #3498db;
+                  padding-bottom: 10px;
+                  font-size: 2.2em;
+                }
+                h2 {
+                  border-left: 4px solid #3498db;
+                  padding-left: 15px;
+                  font-size: 1.6em;
+                }
+                .highlight {
+                  background: #fff3cd;
+                  padding: 3px 6px;
+                  border-radius: 4px;
+                  border: 1px solid #ffeaa7;
+                }
+                .section {
+                  margin: 25px 0;
+                  padding: 20px;
+                  background: #f8f9fa;
+                  border-radius: 8px;
+                }
+                ul, ol {
+                  margin: 15px 0;
+                  padding-left: 25px;
+                }
+                li {
+                  margin: 8px 0;
+                }
+                blockquote {
+                  margin: 20px 0;
+                  padding: 15px 20px;
+                  background: #e8f4f8;
+                  border-left: 5px solid #3498db;
+                  font-style: italic;
+                }
+                .print-actions {
+                  text-align: center;
+                  margin: 20px 0;
+                  padding: 20px;
+                  background: #e3f2fd;
+                  border-radius: 8px;
+                  border: 1px solid #bbdefb;
+                }
+                .print-btn {
+                  background: #2196F3;
+                  color: white;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 6px;
+                  cursor: pointer;
+                  font-size: 16px;
+                  margin: 0 10px;
+                  transition: background 0.3s;
+                }
+                .print-btn:hover {
+                  background: #1976D2;
+                }
+                @media print {
+                  body {
+                    background: white;
+                    padding: 0;
+                    margin: 0;
+                  }
+                  .report-container {
+                    box-shadow: none;
+                    margin: 0;
+                    padding: 20px;
+                  }
+                  .print-actions {
+                    display: none;
+                  }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="print-actions">
+                <button class="print-btn" onclick="window.print()">🖨️ Print Report</button>
+                <button class="print-btn" onclick="saveAsHTML()">💾 Save as HTML</button>
+              </div>
+
+              <div class="report-container">
+                ${htmlContent}
+              </div>
+
+              <script>
+                function saveAsHTML() {
+                  const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = '${(window.currentAnalysisFilename || 'analysis').replace(/\.[^/.]+$/, "")}_report.html';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }
+              </script>
+            </body>
+            </html>
+          `;
+
+          newWindow.document.write(fullHtmlDoc);
           newWindow.document.close();
+          newWindow.focus();
         } else {
           showStatus('❌ Popup blocked. Please allow popups for this site.', 'error', 3000);
         }
+      } catch (error) {
+        console.error('Fullscreen open error:', error);
+        showStatus('❌ Failed to open fullscreen view.', 'error', 3000);
       }
     }
 
-    // ИСПРАВЛЕННАЯ функция для скачивания отчета с fallback
+    // ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ функция для скачивания отчета
     function downloadAnalysis(filename) {
-      const iframe = document.getElementById('analysisFrame');
-      if (iframe && iframe.srcdoc) {
-        try {
-          // Метод 1: Стандартная загрузка через Blob
-          const blob = new Blob([iframe.srcdoc], { type: 'text/html; charset=utf-8' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${filename.replace(/\.[^/.]+$/, "")}_analysis.html`;
-          a.style.display = 'none';
+      const htmlContent = window.currentAnalysisHTML;
 
-          // Добавляем в DOM, кликаем и удаляем
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+      if (!htmlContent) {
+        showStatus('❌ No analysis report found to download.', 'error', 3000);
+        return;
+      }
 
-          // Очищаем URL через небольшую задержку
-          setTimeout(() => URL.revokeObjectURL(url), 100);
+      // Создаем полный HTML документ для скачивания
+      const fullHtmlDoc = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Analysis Report - ${filename}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 30px;
+      background: #f8f9fa;
+      color: #333;
+    }
+    .report-container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 { color: #2c3e50; }
+    h1 { border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+    h2 { border-left: 4px solid #3498db; padding-left: 15px; }
+    .highlight { background: #fff3cd; padding: 3px 6px; border-radius: 4px; }
+    .section { margin: 25px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+    ul, ol { margin: 15px 0; padding-left: 25px; }
+    li { margin: 8px 0; }
+    blockquote { margin: 20px 0; padding: 15px 20px; background: #e8f4f8; border-left: 5px solid #3498db; font-style: italic; }
+    @media print {
+      body { background: white; padding: 0; }
+      .report-container { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    ${htmlContent}
+  </div>
+</body>
+</html>`;
 
-          showStatus('✅ Report downloaded successfully!', 'success', 3000);
-        } catch (error) {
-          console.error('Download error:', error);
+        // Создаем Blob и ссылку для скачивания
+        const blob = new Blob([fullHtmlDoc], { type: 'text/html; charset=utf-8' });
+        const url = URL.createObjectURL(blob);
 
-          // Метод 2: Fallback - копирование HTML в буфер обмена
-          copyToClipboard(iframe.srcdoc).then(success => {
+        // Создаем временную ссылку для скачивания
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = `${filename.replace(/\.[^/.]+$/, "")}_analysis_report.html`;
+        downloadLink.style.display = 'none';
+
+        // Добавляем в DOM, кликаем и удаляем
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        // Очищаем URL через небольшую задержку
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        showStatus('✅ Analysis report downloaded successfully!', 'success', 3000);
+
+      } catch (error) {
+        console.error('Download error:', error);
+
+        // Fallback: предлагаем копировать HTML
+        if (confirm('Download failed. Would you like to copy the HTML content to clipboard instead?')) {
+          copyToClipboard(fullHtmlDoc).then(success => {
             if (success) {
-              showStatus('📋 HTML copied to clipboard! Create .html file and paste content to save.', 'info', 5000);
+              showStatus('📋 HTML copied to clipboard! Create a .html file and paste the content to save.', 'info', 8000);
             } else {
-              // Метод 3: Последний fallback - открытие в новом окне
-              showStatus('❌ Download failed. Opening in fullscreen - use Ctrl+S to save manually.', 'error', 5000);
-              setTimeout(() => openAnalysisFullscreen(), 1000);
+              showStatus('❌ Copy also failed. Try opening in fullscreen and saving manually.', 'error', 5000);
+              // Последний fallback - открываем в новом окне
+              setTimeout(() => openAnalysisFullscreen(), 1500);
             }
           });
         }
-      } else {
-        showStatus('❌ No analysis report found to download.', 'error', 3000);
-      }
-    }
-
-    // Новая функция для копирования HTML
-    function copyAnalysisHTML() {
-      const iframe = document.getElementById('analysisFrame');
-      if (iframe && iframe.srcdoc) {
-        copyToClipboard(iframe.srcdoc).then(success => {
-          if (success) {
-            showStatus('📋 HTML copied to clipboard! Create .html file and paste to save.', 'success', 5000);
-          } else {
-            showStatus('❌ Copy failed. Try using the Download button.', 'error', 3000);
-          }
-        });
-      } else {
-        showStatus('❌ No analysis report found to copy.', 'error', 3000);
       }
     }
 
