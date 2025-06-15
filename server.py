@@ -19,7 +19,7 @@ import asyncpg
 from urllib.parse import parse_qs, unquote
 
 # Импортируем утилиты
-from utils.claude_analyzer import analyze_with_claude
+from utils.claude_analyzer import generate_speaking_analysis
 from config import Config
 
 # Logging setup
@@ -511,7 +511,7 @@ async def process_async_analysis(task_id: str, file_content: bytes, filename: st
         tasks_storage[task_id]["progress"] = 60
 
         # Perform actual analysis
-        result = await analyze_with_claude(
+        result = await generate_speaking_analysis(
             file_content=file_content,
             filename=filename,
             language=language,
@@ -638,7 +638,7 @@ async def analyze_audio(
             raise HTTPException(status_code=400, detail="Empty file")
 
         # Perform analysis
-        result = await analyze_with_claude(
+        result = await generate_speaking_analysis(
             file_content=file_content,
             filename=file.filename,
             language=language,
