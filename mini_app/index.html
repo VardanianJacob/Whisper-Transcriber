@@ -686,10 +686,10 @@
 
   <script>
     // Constants
-    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    const MAX_FILE_SIZE = 100 * 1024 * 1024;
     const SUPPORTED_TYPES = ['audio/', 'video/'];
     const SUPPORTED_EXTENSIONS = ['.m4a', '.mp3', '.wav', '.aac', '.mp4', '.mov', '.caf'];
-    const SYNC_ANALYSIS_LIMIT = 10 * 1024 * 1024; // 10MB
+    const SYNC_ANALYSIS_LIMIT = 10 * 1024 * 1024;
 
     // Global variables
     let tg = null;
@@ -698,20 +698,46 @@
     let pollingInterval = null;
     let lastAnalysisFile = null;
 
-    // Глобальные переменные для хранения данных анализа
+    // Store analysis data
     window.currentAnalysisHTML = null;
     window.currentAnalysisFilename = null;
 
     // Utility functions
-    const $ = (id) => document.getElementById(id);
-    const show = (el) => el.classList.remove('hidden');
-    const hide = (el) => el.classList.add('hidden');
-    const formatFileSize = (bytes) => {
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function show(el) {
+      el.classList.remove('hidden');
+    }
+
+    function hide(el) {
+      el.classList.add('hidden');
+    }
+
+    function formatFileSize(bytes) {
       const sizes = ['Bytes', 'KB', 'MB', 'GB'];
       if (bytes === 0) return '0 Bytes';
       const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
       return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-    };
+    }
+
+    // Simple HTML creation functions
+    function createDiv(className, innerHTML) {
+      const div = document.createElement('div');
+      if (className) div.className = className;
+      if (innerHTML) div.innerHTML = innerHTML;
+      return div;
+    }
+
+    function createButton(className, text, onclick) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = className;
+      btn.innerHTML = text;
+      if (onclick) btn.onclick = onclick;
+      return btn;
+    }
 
     // Modern clipboard API with fallback
     async function copyToClipboard(text) {
@@ -724,7 +750,6 @@
         }
       }
 
-      // Fallback to deprecated method
       try {
         const textarea = document.createElement('textarea');
         textarea.value = text;
@@ -742,19 +767,23 @@
     }
 
     // Status management
-    function showStatus(message, type = 'info', duration = 0) {
+    function showStatus(message, type, duration) {
+      type = type || 'info';
+      duration = duration || 0;
+
       const status = $('status');
-      status.className = `status ${type}`;
+      status.className = 'status ' + type;
       status.innerHTML = message;
       show(status);
 
       if (duration > 0) {
-        setTimeout(() => hide(status), duration);
+        setTimeout(function() { hide(status); }, duration);
       }
     }
 
-    function showLoading(message = 'Processing...') {
-      showStatus(`<div class="loading"><div class="spinner"></div>${message}</div>`, 'info');
+    function showLoading(message) {
+      message = message || 'Processing...';
+      showStatus('<div class="loading"><div class="spinner"></div>' + message + '</div>', 'info');
     }
 
     // File validation
@@ -768,45 +797,48 @@
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error(`File too large (${formatFileSize(file.size)}). Maximum size is ${formatFileSize(MAX_FILE_SIZE)}`);
+        throw new Error('File too large (' + formatFileSize(file.size) + '). Maximum size is ' + formatFileSize(MAX_FILE_SIZE));
       }
 
-      const isSupported = SUPPORTED_TYPES.some(type => file.type.startsWith(type)) ||
-                         SUPPORTED_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
+      const isSupported = SUPPORTED_TYPES.some(function(type) {
+        return file.type.startsWith(type);
+      }) || SUPPORTED_EXTENSIONS.some(function(ext) {
+        return file.name.toLowerCase().endsWith(ext);
+      });
 
       if (!isSupported) {
-        throw new Error(`Unsupported file type: ${file.type || 'unknown'}. Please upload an audio or video file.`);
+        throw new Error('Unsupported file type: ' + (file.type || 'unknown') + '. Please upload an audio or video file.');
       }
 
       return true;
     }
 
-    // API calls with better error handling - ИСПРАВЛЕНО: увеличен таймаут
-    async function apiCall(url, options = {}) {
-      const controller = new AbortController();
+    // API calls
+    async function apiCall(url, options) {
+      options = options || {};
 
-      // Динамический таймаут в зависимости от типа запроса
-      let timeoutDuration = 60000; // 60s по умолчанию
+      const controller = new AbortController();
+      let timeoutDuration = 60000;
 
       if (url.includes('/upload') || url.includes('/analyze')) {
-        timeoutDuration = 300000; // 5 минут для загрузки и анализа
+        timeoutDuration = 300000;
       } else if (url.includes('/auth') || url.includes('/history')) {
-        timeoutDuration = 10000; // 10s для быстрых запросов
+        timeoutDuration = 10000;
       }
 
-      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+      const timeoutId = setTimeout(function() {
+        controller.abort();
+      }, timeoutDuration);
 
       try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal
-        });
+        options.signal = controller.signal;
+        const response = await fetch(url, options);
 
         clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
+          throw new Error('HTTP ' + response.status + ': ' + errorText);
         }
 
         return response;
@@ -814,7 +846,7 @@
         clearTimeout(timeoutId);
         if (error.name === 'AbortError') {
           const minutes = Math.floor(timeoutDuration / 60000);
-          throw new Error(`Request timeout (${minutes} min) - please try with a smaller file or use async analysis`);
+          throw new Error('Request timeout (' + minutes + ' min) - please try with a smaller file or use async analysis');
         }
         throw error;
       }
@@ -830,7 +862,7 @@
       const response = await apiCall('/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ initData })
+        body: new URLSearchParams({ initData: initData })
       });
 
       const result = await response.json();
@@ -840,7 +872,7 @@
     // View management
     function showView(viewName) {
       const views = ['uploadForm', 'resultContainer', 'historyContainer', 'analysisContainer', 'asyncAnalysisContainer'];
-      views.forEach(view => {
+      views.forEach(function(view) {
         const el = $(view);
         if (view === viewName || (viewName === 'upload' && view === 'uploadForm')) {
           show(el);
@@ -851,272 +883,57 @@
       currentView = viewName;
     }
 
-    function showResult(transcript, filename, outputFormat, message) {
-      const container = $('resultContainer');
-      container.innerHTML = `
-        <h2>✅ Transcription Complete</h2>
-        <div class="status success">${message || 'Your audio has been successfully transcribed.'}</div>
-        <div class="form-group">
-          <label>File: ${filename} (${outputFormat})</label>
-          <textarea class="transcript-area" readonly id="transcriptText">${transcript}</textarea>
-        </div>
-        <button type="button" class="btn btn-success" id="copyBtn">
-          📋 Copy Transcript
-        </button>
-        <button type="button" class="btn btn-secondary" onclick="showView('upload')">
-          ⬅️ New Transcription
-        </button>
-      `;
-
-      $('copyBtn').onclick = async () => {
-        const success = await copyToClipboard(transcript);
-        const btn = $('copyBtn');
-        if (success) {
-          btn.innerHTML = '✅ Copied!';
-          btn.classList.add('btn-success');
-          setTimeout(() => {
-            btn.innerHTML = '📋 Copy Transcript';
-            btn.classList.remove('btn-success');
-          }, 2000);
-        } else {
-          showStatus('Copy failed. Please select the text manually.', 'error', 3000);
-        }
-      };
-
-      showView('resultContainer');
-    }
-
-    // Async analysis progress display
-    function showAsyncProgress(taskData) {
-      const container = $('asyncAnalysisContainer');
-
-      container.innerHTML = `
-        <div class="async-progress-container">
-          <div class="async-progress-header">
-            <div class="spinner"></div>
-            <h3>🧠 Claude is analyzing your audio</h3>
-          </div>
-
-          <div class="progress-status" id="progressStatus">Starting analysis...</div>
-          <div class="progress-percentage" id="progressPercentage">0%</div>
-
-          <div class="progress-bar-async">
-            <div class="progress-fill-async" id="progressFillAsync"></div>
-          </div>
-
-          <div class="status-steps">
-            <div class="status-step" id="step-pending">
-              <div class="status-step-icon">⏳</div>
-              <div>Queued</div>
-            </div>
-            <div class="status-step" id="step-transcribing">
-              <div class="status-step-icon">🎤</div>
-              <div>Transcribing</div>
-            </div>
-            <div class="status-step" id="step-analyzing">
-              <div class="status-step-icon">🧠</div>
-              <div>Analyzing</div>
-            </div>
-            <div class="status-step" id="step-completed">
-              <div class="status-step-icon">✅</div>
-              <div>Complete</div>
-            </div>
-          </div>
-
-          <div class="estimated-time" id="estimatedTime">
-            ${taskData.estimated_time ? `Estimated time: ${taskData.estimated_time}` : ''}
-          </div>
-
-          <div style="margin-top: 20px;">
-            <button type="button" class="btn btn-secondary" onclick="cancelAsyncAnalysis()">
-              ❌ Cancel Analysis
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="showView('upload')">
-              ⬅️ Start New Task
-            </button>
-          </div>
-        </div>
-      `;
-
-      showView('asyncAnalysisContainer');
-    }
-
-    // Update async progress
-    function updateAsyncProgress(status, progress = 0) {
-      const progressStatus = $('progressStatus');
-      const progressPercentage = $('progressPercentage');
-      const progressFillAsync = $('progressFillAsync');
-
-      if (progressStatus) progressStatus.textContent = getStatusMessage(status);
-      if (progressPercentage) progressPercentage.textContent = `${progress}%`;
-      if (progressFillAsync) progressFillAsync.style.width = `${progress}%`;
-
-      // Update status steps
-      const steps = ['pending', 'transcribing', 'analyzing', 'completed'];
-      steps.forEach(step => {
-        const stepEl = $(`step-${step}`);
-        if (stepEl) {
-          stepEl.classList.remove('active', 'completed');
-
-          if (status === step) {
-            stepEl.classList.add('active');
-          } else if (steps.indexOf(status) > steps.indexOf(step)) {
-            stepEl.classList.add('completed');
-          }
-        }
-      });
-    }
-
-    function getStatusMessage(status) {
-      const messages = {
-        'pending': 'Waiting in queue...',
-        'transcribing': 'Converting speech to text...',
-        'analyzing': 'Claude is analyzing the conversation...',
-        'completed': 'Analysis complete!',
-        'failed': 'Analysis failed'
-      };
-      return messages[status] || 'Processing...';
-    }
-
-    // Poll async task status
-    async function pollAsyncTask(taskId) {
-      try {
-        const token = await authenticate();
-        const response = await apiCall(`/task/${taskId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        const taskData = await response.json();
-        updateAsyncProgress(taskData.status, taskData.progress);
-
-        if (taskData.status === 'completed') {
-          // Stop polling
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
-          }
-
-          // Get the result
-          setTimeout(async () => {
-            try {
-              const resultResponse = await apiCall(`/task/${taskId}/result`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              const htmlContent = await resultResponse.text();
-              showAnalysis(htmlContent, taskData.filename);
-            } catch (error) {
-              showStatus(`❌ Failed to load result: ${error.message}`, 'error');
-            }
-          }, 1000);
-
-        } else if (taskData.status === 'failed') {
-          // Stop polling
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
-          }
-
-          showStatus(`❌ Analysis failed: ${taskData.error || 'Unknown error'}`, 'error');
-
-          // Show retry option
-          setTimeout(() => {
-            const container = $('asyncAnalysisContainer');
-            container.innerHTML += `
-              <div style="text-align: center; margin-top: 20px;">
-                <button type="button" class="btn btn-claude" onclick="retryLastAnalysis()">
-                  🔄 Retry Analysis
-                </button>
-              </div>
-            `;
-          }, 2000);
-        }
-
-      } catch (error) {
-        console.error('Polling error:', error);
-        showStatus(`❌ Connection error: ${error.message}`, 'error');
-      }
-    }
-
-    // Start async analysis polling
-    function startAsyncPolling(taskId) {
-      asyncTaskId = taskId;
-
-      // Poll every 3 seconds
-      pollingInterval = setInterval(() => {
-        pollAsyncTask(taskId);
-      }, 3000);
-
-      // Initial poll
-      pollAsyncTask(taskId);
-    }
-
-    // Cancel async analysis
-    function cancelAsyncAnalysis() {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-      }
-      asyncTaskId = null;
-      showView('upload');
-      showStatus('Analysis cancelled', 'info', 3000);
-    }
-
-    // Retry last analysis (store file data for retry)
-    function retryLastAnalysis() {
-      if (lastAnalysisFile) {
-        performClaudeAnalysis(lastAnalysisFile);
-      } else {
-        showStatus('❌ No previous analysis to retry', 'error', 3000);
-      }
-    }
-
-    // ИСПРАВЛЕННАЯ функция показа анализа - убрана кнопка Copy HTML
+    // Simple analysis functions without complex string concatenation
     function showAnalysis(htmlContent, filename) {
       const container = $('analysisContainer');
 
-      container.innerHTML = `
-        <div class="analysis-container-wrapper">
-          <div class="analysis-header">
-            <div>
-              <h2 style="margin: 0; color: var(--text-color);">🧠 AI Analysis Report</h2>
-              <p style="margin: 5px 0 0 0; color: var(--text-color); opacity: 0.7;">Claude analyzed: ${filename}</p>
-            </div>
-            <button type="button" class="btn btn-secondary" onclick="showView('upload')" style="margin: 0;">
-              ⬅️ Back
-            </button>
-          </div>
+      // Clear container
+      container.innerHTML = '';
 
-          <div class="analysis-frame-container">
-            <iframe
-              id="analysisFrame"
-              style="width: 100%; min-height: 500px; border: none; border-radius: 8px;"
-              sandbox="allow-same-origin allow-scripts"
-              srcdoc=""></iframe>
-          </div>
+      // Create wrapper
+      const wrapper = createDiv('analysis-container-wrapper');
 
-          <div class="analysis-actions">
-            <button type="button" class="btn btn-primary" onclick="openAnalysisFullscreen()">
-              🔍 Open Fullscreen
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="downloadAnalysis('${filename}')">
-              💾 Download Report
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="shareAnalysis()">
-              📤 Share Analysis
-            </button>
-          </div>
-        </div>
-      `;
+      // Create header
+      const header = createDiv('analysis-header');
+      const headerInfo = createDiv();
+      headerInfo.innerHTML = '<h2 style="margin: 0; color: var(--text-color);">🧠 AI Analysis Report</h2><p style="margin: 5px 0 0 0; color: var(--text-color); opacity: 0.7;">Claude analyzed: ' + filename + '</p>';
+      const backBtn = createButton('btn btn-secondary', '⬅️ Back', function() { showView('upload'); });
+      backBtn.style.margin = '0';
 
-      // Безопасно вставляем HTML в iframe
-      const iframe = document.getElementById('analysisFrame');
+      header.appendChild(headerInfo);
+      header.appendChild(backBtn);
+
+      // Create iframe container
+      const frameContainer = createDiv('analysis-frame-container');
+      const iframe = document.createElement('iframe');
+      iframe.id = 'analysisFrame';
+      iframe.style.cssText = 'width: 100%; min-height: 500px; border: none; border-radius: 8px;';
+      iframe.sandbox = 'allow-same-origin allow-scripts';
       iframe.srcdoc = htmlContent;
+      frameContainer.appendChild(iframe);
 
-      // Store HTML content globally for download function
+      // Create actions
+      const actions = createDiv('analysis-actions');
+
+      const fullscreenBtn = createButton('btn btn-primary', '🔍 Open Fullscreen', openAnalysisFullscreen);
+      const downloadBtn = createButton('btn btn-secondary', '💾 Download Report', function() { downloadAnalysis(filename); });
+      const shareBtn = createButton('btn btn-secondary', '📤 Share Analysis', shareAnalysis);
+
+      actions.appendChild(fullscreenBtn);
+      actions.appendChild(downloadBtn);
+      actions.appendChild(shareBtn);
+
+      // Assemble
+      wrapper.appendChild(header);
+      wrapper.appendChild(frameContainer);
+      wrapper.appendChild(actions);
+      container.appendChild(wrapper);
+
+      // Store data
       window.currentAnalysisHTML = htmlContent;
       window.currentAnalysisFilename = filename;
 
-      // Автоматически подстраиваем высоту iframe
+      // Auto-resize iframe
       iframe.onload = function() {
         try {
           const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
@@ -1125,7 +942,6 @@
             iframe.style.height = Math.min(height + 50, window.innerHeight * 0.7) + 'px';
           }
         } catch (e) {
-          // Если не удается получить высоту, устанавливаем фиксированную
           iframe.style.height = '500px';
         }
       };
@@ -1133,7 +949,41 @@
       showView('analysisContainer');
     }
 
-    // ИСПРАВЛЕННАЯ функция для открытия в полном экране
+    // Simple download function
+    function downloadAnalysis(filename) {
+      const htmlContent = window.currentAnalysisHTML;
+
+      if (!htmlContent) {
+        showStatus('❌ No analysis report found to download.', 'error', 3000);
+        return;
+      }
+
+      const fullHtmlDoc = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AI Analysis Report - ' + filename + '</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:30px;background:#f8f9fa;color:#333}.report-container{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1)}h1,h2,h3{color:#2c3e50}h1{border-bottom:3px solid #3498db;padding-bottom:10px}h2{border-left:4px solid #3498db;padding-left:15px}.highlight{background:#fff3cd;padding:3px 6px;border-radius:4px}.section{margin:25px 0;padding:20px;background:#f8f9fa;border-radius:8px}ul,ol{margin:15px 0;padding-left:25px}li{margin:8px 0}blockquote{margin:20px 0;padding:15px 20px;background:#e8f4f8;border-left:5px solid #3498db;font-style:italic}@media print{body{background:white;padding:0}.report-container{box-shadow:none}}</style></head><body><div class="report-container">' + htmlContent + '</div></body></html>';
+
+      try {
+        const blob = new Blob([fullHtmlDoc], { type: 'text/html; charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = filename.replace(/\.[^/.]+$/, '') + '_analysis_report.html';
+        downloadLink.style.display = 'none';
+
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+
+        showStatus('✅ Analysis report downloaded successfully!', 'success', 3000);
+      } catch (error) {
+        console.error('Download error:', error);
+        showStatus('❌ Download failed. Try opening in fullscreen and saving manually.', 'error', 5000);
+        setTimeout(openAnalysisFullscreen, 1500);
+      }
+    }
+
+    // Simple fullscreen function
     function openAnalysisFullscreen() {
       const htmlContent = window.currentAnalysisHTML;
 
@@ -1145,135 +995,7 @@
       try {
         const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
         if (newWindow) {
-          // Создаем полноценный HTML документ с улучшенными стилями
-          const fullHtmlDoc = `
-            <!DOCTYPE html>
-            <html lang="ru">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>AI Analysis Report - ${window.currentAnalysisFilename || 'Audio Transcription'}</title>
-              <style>
-                body {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                  line-height: 1.6;
-                  max-width: 900px;
-                  margin: 0 auto;
-                  padding: 30px;
-                  background: #f8f9fa;
-                  color: #333;
-                }
-                .report-container {
-                  background: white;
-                  padding: 40px;
-                  border-radius: 12px;
-                  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                  margin-bottom: 30px;
-                }
-                h1, h2, h3 {
-                  color: #2c3e50;
-                  margin-top: 30px;
-                  margin-bottom: 15px;
-                }
-                h1 {
-                  border-bottom: 3px solid #3498db;
-                  padding-bottom: 10px;
-                  font-size: 2.2em;
-                }
-                h2 {
-                  border-left: 4px solid #3498db;
-                  padding-left: 15px;
-                  font-size: 1.6em;
-                }
-                .highlight {
-                  background: #fff3cd;
-                  padding: 3px 6px;
-                  border-radius: 4px;
-                  border: 1px solid #ffeaa7;
-                }
-                .section {
-                  margin: 25px 0;
-                  padding: 20px;
-                  background: #f8f9fa;
-                  border-radius: 8px;
-                }
-                ul, ol {
-                  margin: 15px 0;
-                  padding-left: 25px;
-                }
-                li {
-                  margin: 8px 0;
-                }
-                blockquote {
-                  margin: 20px 0;
-                  padding: 15px 20px;
-                  background: #e8f4f8;
-                  border-left: 5px solid #3498db;
-                  font-style: italic;
-                }
-                .print-actions {
-                  text-align: center;
-                  margin: 20px 0;
-                  padding: 20px;
-                  background: #e3f2fd;
-                  border-radius: 8px;
-                  border: 1px solid #bbdefb;
-                }
-                .print-btn {
-                  background: #2196F3;
-                  color: white;
-                  border: none;
-                  padding: 12px 24px;
-                  border-radius: 6px;
-                  cursor: pointer;
-                  font-size: 16px;
-                  margin: 0 10px;
-                  transition: background 0.3s;
-                }
-                .print-btn:hover {
-                  background: #1976D2;
-                }
-                @media print {
-                  body {
-                    background: white;
-                    padding: 0;
-                    margin: 0;
-                  }
-                  .report-container {
-                    box-shadow: none;
-                    margin: 0;
-                    padding: 20px;
-                  }
-                  .print-actions {
-                    display: none;
-                  }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="print-actions">
-                <button class="print-btn" onclick="window.print()">🖨️ Print Report</button>
-                <button class="print-btn" onclick="saveAsHTML()">💾 Save as HTML</button>
-              </div>
-
-              <div class="report-container">
-                ${htmlContent}
-              </div>
-
-              <script>
-                function saveAsHTML() {
-                  const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = '${(window.currentAnalysisFilename || 'analysis').replace(/\.[^/.]+$/, "")}_report.html';
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }
-              </script>
-            </body>
-            </html>
-          `;
+          const fullHtmlDoc = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AI Analysis Report</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;max-width:900px;margin:0 auto;padding:30px;background:#f8f9fa;color:#333}.report-container{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);margin-bottom:30px}h1,h2,h3{color:#2c3e50;margin-top:30px;margin-bottom:15px}h1{border-bottom:3px solid #3498db;padding-bottom:10px;font-size:2.2em}h2{border-left:4px solid #3498db;padding-left:15px;font-size:1.6em}.highlight{background:#fff3cd;padding:3px 6px;border-radius:4px;border:1px solid #ffeaa7}.section{margin:25px 0;padding:20px;background:#f8f9fa;border-radius:8px}ul,ol{margin:15px 0;padding-left:25px}li{margin:8px 0}blockquote{margin:20px 0;padding:15px 20px;background:#e8f4f8;border-left:5px solid #3498db;font-style:italic}.print-actions{text-align:center;margin:20px 0;padding:20px;background:#e3f2fd;border-radius:8px;border:1px solid #bbdefb}.print-btn{background:#2196F3;color:white;border:none;padding:12px 24px;border-radius:6px;cursor:pointer;font-size:16px;margin:0 10px;transition:background 0.3s}.print-btn:hover{background:#1976D2}@media print{body{background:white;padding:0;margin:0}.report-container{box-shadow:none;margin:0;padding:20px}.print-actions{display:none}}</style></head><body><div class="print-actions"><button class="print-btn" onclick="window.print()">🖨️ Print Report</button></div><div class="report-container">' + htmlContent + '</div></body></html>';
 
           newWindow.document.write(fullHtmlDoc);
           newWindow.document.close();
@@ -1287,108 +1009,17 @@
       }
     }
 
-    // ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ функция для скачивания отчета
-    function downloadAnalysis(filename) {
-      const htmlContent = window.currentAnalysisHTML;
-
-      if (!htmlContent) {
-        showStatus('❌ No analysis report found to download.', 'error', 3000);
-        return;
-      }
-
-      // Создаем полный HTML документ для скачивания
-      const fullHtmlDoc = `<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Analysis Report - ${filename}</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 30px;
-      background: #f8f9fa;
-      color: #333;
-    }
-    .report-container {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    h1, h2, h3 { color: #2c3e50; }
-    h1 { border-bottom: 3px solid #3498db; padding-bottom: 10px; }
-    h2 { border-left: 4px solid #3498db; padding-left: 15px; }
-    .highlight { background: #fff3cd; padding: 3px 6px; border-radius: 4px; }
-    .section { margin: 25px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
-    ul, ol { margin: 15px 0; padding-left: 25px; }
-    li { margin: 8px 0; }
-    blockquote { margin: 20px 0; padding: 15px 20px; background: #e8f4f8; border-left: 5px solid #3498db; font-style: italic; }
-    @media print {
-      body { background: white; padding: 0; }
-      .report-container { box-shadow: none; }
-    }
-  </style>
-</head>
-<body>
-  <div class="report-container">
-    ${htmlContent}
-  </div>
-</body>
-</html>`;
-
-        // Создаем Blob и ссылку для скачивания
-        const blob = new Blob([fullHtmlDoc], { type: 'text/html; charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-
-        // Создаем временную ссылку для скачивания
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = `${filename.replace(/\.[^/.]+$/, "")}_analysis_report.html`;
-        downloadLink.style.display = 'none';
-
-        // Добавляем в DOM, кликаем и удаляем
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-
-        // Очищаем URL через небольшую задержку
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-        showStatus('✅ Analysis report downloaded successfully!', 'success', 3000);
-
-      } catch (error) {
-        console.error('Download error:', error);
-
-        // Fallback: предлагаем копировать HTML
-        if (confirm('Download failed. Would you like to copy the HTML content to clipboard instead?')) {
-          copyToClipboard(fullHtmlDoc).then(success => {
-            if (success) {
-              showStatus('📋 HTML copied to clipboard! Create a .html file and paste the content to save.', 'info', 8000);
-            } else {
-              showStatus('❌ Copy also failed. Try opening in fullscreen and saving manually.', 'error', 5000);
-              // Последний fallback - открываем в новом окне
-              setTimeout(() => openAnalysisFullscreen(), 1500);
-            }
-          });
-        }
-      }
-    }
-
-    // Функция для расшаривания анализа
     function shareAnalysis() {
       if (navigator.share) {
         navigator.share({
           title: 'Speech Analysis Report',
           text: 'Check out this AI-powered speech analysis report generated by Claude.',
           url: window.location.href
-        }).catch(err => console.log('Error sharing:', err));
+        }).catch(function(err) {
+          console.log('Error sharing:', err);
+        });
       } else {
-        // Fallback to copying URL
-        copyToClipboard(window.location.href).then(success => {
+        copyToClipboard(window.location.href).then(function(success) {
           if (success) {
             showStatus('✅ Link copied to clipboard!', 'success', 3000);
           } else {
@@ -1398,55 +1029,57 @@
       }
     }
 
+    // Simple history function
     async function showHistory() {
       showLoading('Loading your transcriptions...');
 
       try {
         const token = await authenticate();
         const response = await apiCall('/history', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': 'Bearer ' + token }
         });
 
         const history = await response.json();
         const container = $('historyContainer');
 
-        if (!Array.isArray(history) || history.length === 0) {
-          container.innerHTML = `
-            <h2>📋 My Transcriptions</h2>
-            <div class="status info">No transcriptions found. Upload your first audio file!</div>
-            <button type="button" class="btn btn-primary" onclick="showView('upload')">
-              🎤 Upload Audio
-            </button>
-          `;
-        } else {
-          let historyHTML = '<h2>📋 My Transcriptions</h2><ul class="history-list">';
+        container.innerHTML = '';
 
-          history.forEach((item, index) => {
+        if (!Array.isArray(history) || history.length === 0) {
+          container.innerHTML = '<h2>📋 My Transcriptions</h2><div class="status info">No transcriptions found. Upload your first audio file!</div><button type="button" class="btn btn-primary" onclick="showView(\'upload\')">🎤 Upload Audio</button>';
+        } else {
+          const title = document.createElement('h2');
+          title.textContent = '📋 My Transcriptions';
+          container.appendChild(title);
+
+          const list = document.createElement('ul');
+          list.className = 'history-list';
+
+          history.forEach(function(item, index) {
             const date = new Date(item.created_at).toLocaleString();
             const isAnalysis = item.output_format === 'html_analysis';
             const icon = isAnalysis ? '🧠' : '📄';
             const type = isAnalysis ? 'AI Analysis' : 'Transcription';
 
-            historyHTML += `
-              <li class="history-item">
-                <div class="history-meta">${date} • ${item.filename} • ${type}</div>
-                <button type="button" class="btn btn-secondary" onclick="showHistoryItem(${index})">
-                  ${icon} View ${type}
-                </button>
-              </li>
-            `;
+            const listItem = document.createElement('li');
+            listItem.className = 'history-item';
+
+            const meta = createDiv('history-meta', date + ' • ' + item.filename + ' • ' + type);
+            const btn = createButton('btn btn-secondary', icon + ' View ' + type, function() {
+              showHistoryItem(index);
+            });
+
+            listItem.appendChild(meta);
+            listItem.appendChild(btn);
+            list.appendChild(listItem);
           });
 
-          historyHTML += `
-            </ul>
-            <button type="button" class="btn btn-secondary" onclick="showView('upload')">
-              ⬅️ Back to Upload
-            </button>
-          `;
+          container.appendChild(list);
 
-          container.innerHTML = historyHTML;
+          const backBtn = createButton('btn btn-secondary', '⬅️ Back to Upload', function() {
+            showView('upload');
+          });
+          container.appendChild(backBtn);
 
-          // Store history for access
           window.historyData = history;
         }
 
@@ -1454,7 +1087,7 @@
         hide($('status'));
 
       } catch (error) {
-        showStatus(`❌ Failed to load history: ${error.message}`, 'error');
+        showStatus('❌ Failed to load history: ' + error.message, 'error');
       }
     }
 
@@ -1465,102 +1098,96 @@
       if (item.output_format === 'html_analysis') {
         showAnalysis(item.transcript, item.filename);
       } else {
-        showResult(item.transcript, item.filename, item.output_format, `Transcription from ${date}`);
+        showResult(item.transcript, item.filename, item.output_format, 'Transcription from ' + date);
       }
     }
 
-    // Improved Claude Analysis function with async support
-    async function performClaudeAnalysis(fileOverride = null) {
-      const analyzeBtn = $('analyzeBtn');
-      const originalText = analyzeBtn.innerHTML;
+    function showResult(transcript, filename, outputFormat, message) {
+      const container = $('resultContainer');
+      container.innerHTML = '';
 
-      try {
-        // Validate form
-        const fileInput = $('audioFile');
-        const file = fileOverride || fileInput.files[0];
-        validateFile(file);
+      const title = document.createElement('h2');
+      title.textContent = '✅ Transcription Complete';
+      container.appendChild(title);
 
-        // Store file for potential retry
-        lastAnalysisFile = file;
+      const status = createDiv('status success', message || 'Your audio has been successfully transcribed.');
+      container.appendChild(status);
 
-        // Disable button and show loading
-        analyzeBtn.disabled = true;
-        analyzeBtn.innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing with Claude...</div>';
+      const formGroup = createDiv('form-group');
+      const label = document.createElement('label');
+      label.textContent = 'File: ' + filename + ' (' + outputFormat + ')';
+      formGroup.appendChild(label);
 
-        // Authenticate
-        const token = await authenticate();
+      const textarea = document.createElement('textarea');
+      textarea.className = 'transcript-area';
+      textarea.readOnly = true;
+      textarea.id = 'transcriptText';
+      textarea.value = transcript;
+      formGroup.appendChild(textarea);
+      container.appendChild(formGroup);
 
-        // Prepare form data
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('speaker_labels', 'true');
-        formData.append('language', $('language').value);
-        formData.append('prompt', $('prompt').value || '');
-        formData.append('translate', $('translate').checked);
-
-        // Handle speaker parameters
-        const speakerMode = $('speakerMode').value;
-        formData.append('min_speakers', '1');
-
-        if (speakerMode === 'manual') {
-          const numSpeakers = $('numSpeakers').value || '2';
-          formData.append('max_speakers', numSpeakers);
+      const copyBtn = createButton('btn btn-success', '📋 Copy Transcript', async function() {
+        const success = await copyToClipboard(transcript);
+        if (success) {
+          copyBtn.innerHTML = '✅ Copied!';
+          copyBtn.classList.add('btn-success');
+          setTimeout(function() {
+            copyBtn.innerHTML = '📋 Copy Transcript';
+            copyBtn.classList.remove('btn-success');
+          }, 2000);
         } else {
-          formData.append('max_speakers', '8');
+          showStatus('Copy failed. Please select the text manually.', 'error', 3000);
         }
+      });
+      copyBtn.id = 'copyBtn';
+      container.appendChild(copyBtn);
 
-        // Check file size and choose endpoint
-        const fileSizeMB = file.size / (1024 * 1024);
-        const isLargeFile = fileSizeMB > 10;
+      const newBtn = createButton('btn btn-secondary', '⬅️ New Transcription', function() {
+        showView('upload');
+      });
+      container.appendChild(newBtn);
 
-        if (isLargeFile) {
-          // Use async endpoint for large files
-          showLoading(`🧠 Starting analysis for large file (${fileSizeMB.toFixed(1)}MB)...`);
-
-          const response = await apiCall('/analyze-async', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData
-          });
-
-          const result = await response.json();
-
-          // Show async progress
-          showAsyncProgress(result);
-
-          // Start polling
-          startAsyncPolling(result.task_id);
-
-          hide($('status'));
-
-        } else {
-          // Use sync endpoint for small files
-          showLoading(`🧠 Claude is analyzing your audio (${fileSizeMB.toFixed(1)}MB)... This may take up to 5 minutes.`);
-
-          const response = await apiCall('/analyze', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData
-          });
-
-          // Get HTML response
-          const htmlContent = await response.text();
-
-          // Show analysis result
-          showAnalysis(htmlContent, file.name);
-          hide($('status'));
-        }
-
-      } catch (error) {
-        showStatus(`❌ Analysis failed: ${error.message}`, 'error');
-      } finally {
-        // Reset button
-        analyzeBtn.disabled = false;
-        analyzeBtn.innerHTML = originalText;
-      }
+      showView('resultContainer');
     }
 
-    // File input handler
+    // Event handlers
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Initializing Telegram WebApp...');
+
+      if (!window.Telegram || !window.Telegram.WebApp) {
+        showStatus('❌ Telegram WebApp not available. Please open from Telegram bot.', 'error');
+        return;
+      }
+
+      tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+
+      if (tg.colorScheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.setProperty('--background-color', tg.themeParams.bg_color || '#1a1a1a');
+        document.documentElement.style.setProperty('--card-background', tg.themeParams.secondary_bg_color || '#2a2a2a');
+        document.documentElement.style.setProperty('--text-color', tg.themeParams.text_color || '#ffffff');
+      }
+
+      $('initData').value = tg.initData || '';
+
+      if (tg.initData) {
+        showStatus('✅ Ready to transcribe your audio files!', 'success', 3000);
+      } else {
+        showStatus('⚠️ No Telegram data found. Please open from Telegram bot.', 'error');
+      }
+
+      console.log('WebApp initialized successfully');
+    });
+
+    // Button event handlers
+    $('showHistoryBtn').onclick = showHistory;
+    $('analyzeBtn').onclick = function() {
+      showStatus('🚧 Analysis function temporarily disabled for debugging.', 'info', 5000);
+    };
+
+    // Form handlers
     $('audioFile').onchange = function(e) {
       const file = e.target.files[0];
       const fileInfo = $('fileInfo');
@@ -1575,49 +1202,16 @@
         const fileSizeMB = file.size / (1024 * 1024);
         const analysisType = fileSizeMB > 10 ? 'Async Analysis (Large File)' : 'Quick Analysis (up to 5 min)';
 
-        fileInfo.innerHTML = `
-          📁 ${file.name}<br>
-          📊 ${formatFileSize(file.size)}<br>
-          🎵 ${file.type || 'Unknown type'}<br>
-          🧠 ${analysisType}
-        `;
+        fileInfo.innerHTML = '📁 ' + file.name + '<br>📊 ' + formatFileSize(file.size) + '<br>🎵 ' + (file.type || 'Unknown type') + '<br>🧠 ' + analysisType;
         fileInfo.className = 'file-info';
         show(fileInfo);
       } catch (error) {
-        fileInfo.innerHTML = `❌ ${error.message}`;
+        fileInfo.innerHTML = '❌ ' + error.message;
         fileInfo.className = 'file-info error';
         show(fileInfo);
       }
     };
 
-    // Debug functionality
-    $('debugBtn').onclick = () => {
-      const debugInfo = $('debugInfo');
-      const isVisible = !debugInfo.classList.contains('hidden');
-
-      if (isVisible) {
-        hide(debugInfo);
-        $('debugBtn').innerHTML = '🔧 Debug Info';
-      } else {
-        const initData = $('initData').value;
-        debugInfo.innerHTML = `
-          <strong>Debug Information:</strong><br>
-          <strong>initData length:</strong> ${initData.length}<br>
-          <strong>initData:</strong> ${initData.substring(0, 100)}${initData.length > 100 ? '...' : ''}<br>
-          <strong>User ID:</strong> ${tg?.initDataUnsafe?.user?.id || 'unknown'}<br>
-          <strong>Username:</strong> ${tg?.initDataUnsafe?.user?.username || 'unknown'}<br>
-          <strong>WebApp version:</strong> ${tg?.version || 'unknown'}<br>
-          <strong>Platform:</strong> ${tg?.platform || 'unknown'}<br>
-          <strong>Color scheme:</strong> ${tg?.colorScheme || 'unknown'}<br>
-          <strong>Current task:</strong> ${asyncTaskId || 'none'}<br>
-          <strong>Polling active:</strong> ${pollingInterval ? 'yes' : 'no'}
-        `;
-        show(debugInfo);
-        $('debugBtn').innerHTML = '🔧 Hide Debug';
-      }
-    };
-
-    // Speaker mode handler
     $('speakerMode').onchange = function(e) {
       const manualGroup = $('manualSpeakersGroup');
       if (e.target.value === 'manual') {
@@ -1627,12 +1221,22 @@
       }
     };
 
-    // Event handlers
-    $('showHistoryBtn').onclick = showHistory;
-    $('analyzeBtn').onclick = () => performClaudeAnalysis();
+    $('debugBtn').onclick = function() {
+      const debugInfo = $('debugInfo');
+      const isVisible = !debugInfo.classList.contains('hidden');
 
-    // Form submission
-    $('uploadForm').onsubmit = async (e) => {
+      if (isVisible) {
+        hide(debugInfo);
+        $('debugBtn').innerHTML = '🔧 Debug Info';
+      } else {
+        const initData = $('initData').value;
+        debugInfo.innerHTML = '<strong>Debug Information:</strong><br><strong>initData length:</strong> ' + initData.length + '<br><strong>initData:</strong> ' + initData.substring(0, 100) + (initData.length > 100 ? '...' : '') + '<br><strong>User ID:</strong> ' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 'unknown') + '<br><strong>Username:</strong> ' + (tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.username : 'unknown') + '<br><strong>WebApp version:</strong> ' + (tg ? tg.version : 'unknown') + '<br><strong>Platform:</strong> ' + (tg ? tg.platform : 'unknown') + '<br><strong>Color scheme:</strong> ' + (tg ? tg.colorScheme : 'unknown');
+        show(debugInfo);
+        $('debugBtn').innerHTML = '🔧 Hide Debug';
+      }
+    };
+
+    $('uploadForm').onsubmit = async function(e) {
       e.preventDefault();
 
       const submitBtn = $('submitBtn');
@@ -1641,22 +1245,18 @@
       const progressFill = $('progressFill');
 
       try {
-        // Validate form
         const fileInput = $('audioFile');
         const file = fileInput.files[0];
         validateFile(file);
 
-        // Disable form
         submitBtn.disabled = true;
         show(progressBar);
 
-        // Step 1: Authentication
         submitText.textContent = 'Authenticating...';
         progressFill.style.width = '20%';
 
         const token = await authenticate();
 
-        // Step 2: Prepare upload
         submitText.textContent = 'Preparing upload...';
         progressFill.style.width = '40%';
 
@@ -1664,7 +1264,6 @@
         formData.delete('initData');
         formData.set('speaker_labels', 'true');
 
-        // Handle speaker parameters
         const speakerMode = formData.get('speaker_mode');
         formData.set('min_speakers', '1');
 
@@ -1675,17 +1274,15 @@
           formData.set('max_speakers', '8');
         }
 
-        // Remove our custom fields
         formData.delete('speaker_mode');
         formData.delete('num_speakers');
 
-        // Step 3: Upload
         submitText.textContent = 'Uploading & transcribing...';
         progressFill.style.width = '60%';
 
         const response = await apiCall('/upload', {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { 'Authorization': 'Bearer ' + token },
           body: formData
         });
 
@@ -1696,60 +1293,18 @@
         if (result.transcript) {
           showResult(result.transcript, result.filename, result.output_format, result.message);
         } else {
-          showStatus(`✅ ${result.message || 'Upload successful!'}`, 'success');
+          showStatus('✅ ' + (result.message || 'Upload successful!'), 'success');
         }
 
       } catch (error) {
-        showStatus(`❌ ${error.message}`, 'error');
+        showStatus('❌ ' + error.message, 'error');
       } finally {
-        // Reset form state
         submitBtn.disabled = false;
         submitText.textContent = 'Upload & Transcribe';
         hide(progressBar);
         progressFill.style.width = '0%';
       }
     };
-
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-    });
-
-    // Initialize when DOM is ready
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('Initializing Telegram WebApp...');
-
-      if (!window.Telegram?.WebApp) {
-        showStatus('❌ Telegram WebApp not available. Please open from Telegram bot.', 'error');
-        return;
-      }
-
-      tg = window.Telegram.WebApp;
-      tg.ready();
-      tg.expand();
-
-      // Apply Telegram theme
-      if (tg.colorScheme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.documentElement.style.setProperty('--background-color', tg.themeParams.bg_color || '#1a1a1a');
-        document.documentElement.style.setProperty('--card-background', tg.themeParams.secondary_bg_color || '#2a2a2a');
-        document.documentElement.style.setProperty('--text-color', tg.themeParams.text_color || '#ffffff');
-      }
-
-      // Set initData
-      $('initData').value = tg.initData || '';
-
-      // Show ready status
-      if (tg.initData) {
-        showStatus('✅ Ready to transcribe your audio files!', 'success', 3000);
-      } else {
-        showStatus('⚠️ No Telegram data found. Please open from Telegram bot.', 'error');
-      }
-
-      console.log('WebApp initialized successfully');
-    });
   </script>
 </body>
 </html>
