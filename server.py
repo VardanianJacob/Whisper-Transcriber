@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, unquote
 
 # Импортируем утилиты
 from utils.claude_analyzer import generate_speaking_analysis
+from api.whisper import transcribe_audio
 from config import Config
 
 # Logging setup
@@ -503,14 +504,21 @@ async def process_async_analysis(task_id: str, file_content: bytes, filename: st
         tasks_storage[task_id]["status"] = "transcribing"
         tasks_storage[task_id]["progress"] = 20
 
-        # Simulate transcription process
-        await asyncio.sleep(2)
+        # Perform actual transcription with Whisper API
+        transcript_data = await transcribe_audio(
+            file_content=file_content,
+            filename=filename,
+            language=language,
+            translate=translate,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers
+        )
 
         # Update to analyzing
         tasks_storage[task_id]["status"] = "analyzing"
         tasks_storage[task_id]["progress"] = 60
 
-        # Perform actual analysis
+        # Perform Claude analysis
         result = await generate_speaking_analysis(
             file_content=file_content,
             filename=filename,
@@ -592,8 +600,21 @@ async def upload_audio(
         if len(file_content) == 0:
             raise HTTPException(status_code=400, detail="Empty file")
 
-        # For now, return a mock response since we don't have Whisper implementation
-        transcript = f"[Mock transcription for {file.filename}]\n\nThis is a placeholder transcript. In the actual implementation, this would contain the transcribed text from your audio file using Whisper API.\n\nFile: {file.filename}\nLanguage: {language}\nFormat: {output_format}"
+        # Transcribe with Whisper API
+        transcript_data = await transcribe_audio(
+            file_content=file_content,
+            filename=file.filename,
+            language=language,
+            translate=translate,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers
+        )
+
+        # Extract transcript text
+        if isinstance(transcript_data, dict):
+            transcript = transcript_data.get("text", str(transcript_data))
+        else:
+            transcript = str(transcript_data)
 
         # Save to database
         conn = await get_database()
@@ -637,7 +658,7 @@ async def analyze_audio(
         if len(file_content) == 0:
             raise HTTPException(status_code=400, detail="Empty file")
 
-        # Perform analysis
+        # Perform analysis (includes transcription + Claude analysis)
         result = await generate_speaking_analysis(
             file_content=file_content,
             filename=file.filename,

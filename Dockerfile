@@ -9,7 +9,7 @@ WORKDIR /app
 
 # 📋 Copy requirements directory and install dependencies
 COPY requirements/ ./requirements/
-RUN pip install --no-cache-dir -r requirements/production.txt \
+RUN pip install --no-cache-dir -r requirements/base.txt \
     && pip cache purge
 
 # 📁 Copy application code (excluding unnecessary files)
@@ -29,10 +29,10 @@ RUN mkdir -p /app/transcripts && chown appuser:appuser /app/transcripts
 # 🛡️ Switch to non-root user
 USER appuser
 
-# 🔍 Health check
+# 🔍 Health check (исправленный порт)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8080/', timeout=5)" || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:8000/', timeout=5)" || exit 1
 
-# 🚀 Expose port and start application
-EXPOSE 8080
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
+# 🚀 Expose port and start application (исправленный порт)
+EXPOSE 8000
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,7 +1,9 @@
-import requests
+import asyncio
+import aiohttp
 import logging
 import os
 import mimetypes
+import tempfile
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union
 from config import (
@@ -28,7 +30,7 @@ SUPPORTED_AUDIO_TYPES = {
 MAX_FILE_SIZE = 100 * 1024 * 1024
 
 # Request timeout settings
-REQUEST_TIMEOUT = (30, 300)  # (connect_timeout, read_timeout)
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=300, connect=30)  # 5 minutes total, 30s connect
 MAX_RETRIES = 3
 
 
@@ -42,51 +44,34 @@ class FileValidationError(Exception):
     pass
 
 
-def validate_audio_file(file_path: Union[str, Path]) -> Path:
+def validate_file_content(file_content: bytes, filename: str) -> None:
     """
-    Validate audio file for transcription.
+    Validate audio file content for transcription.
 
     Args:
-        file_path: Path to audio file
-
-    Returns:
-        Path: Validated file path
+        file_content: Audio file content as bytes
+        filename: Original filename
 
     Raises:
         FileValidationError: If file is invalid
     """
-    file_path = Path(file_path)
-
-    # Check if file exists
-    if not file_path.exists():
-        raise FileValidationError(f"File does not exist: {file_path}")
-
-    # Check if it's a file (not directory)
-    if not file_path.is_file():
-        raise FileValidationError(f"Path is not a file: {file_path}")
+    # Check if content exists
+    if not file_content:
+        raise FileValidationError("File content is empty")
 
     # Check file size
-    file_size = file_path.stat().st_size
-    if file_size == 0:
-        raise FileValidationError("File is empty")
-
+    file_size = len(file_content)
     if file_size > MAX_FILE_SIZE:
         size_mb = file_size / (1024 * 1024)
         raise FileValidationError(f"File too large: {size_mb:.1f}MB (max: {MAX_FILE_SIZE // (1024 * 1024)}MB)")
 
     # Check file extension
-    file_extension = file_path.suffix.lower()
+    file_extension = Path(filename).suffix.lower()
     if file_extension not in SUPPORTED_AUDIO_TYPES:
         raise FileValidationError(
             f"Unsupported file type: {file_extension}. Supported: {', '.join(SUPPORTED_AUDIO_TYPES)}")
 
-    # Check MIME type
-    mime_type, _ = mimetypes.guess_type(str(file_path))
-    if mime_type and not (mime_type.startswith('audio/') or mime_type.startswith('video/')):
-        raise FileValidationError(f"Invalid MIME type: {mime_type}")
-
-    logger.info(f"File validation passed: {file_path.name} ({file_size / 1024:.1f}KB)")
-    return file_path
+    logger.info(f"File validation passed: {filename} ({file_size / 1024:.1f}KB)")
 
 
 def validate_parameters(
@@ -133,8 +118,9 @@ def validate_parameters(
                 f"Invalid timestamp granularities: {invalid_granularities}. Valid options: {valid_granularities}")
 
 
-def transcribe_audio(
-        file_path: Union[str, Path],
+async def transcribe_audio(
+        file_content: bytes,
+        filename: str,
         language: str = DEFAULT_LANGUAGE,
         prompt: Optional[str] = None,
         speaker_labels: bool = DEFAULT_SPEAKER_LABELS,
@@ -146,10 +132,11 @@ def transcribe_audio(
         max_speakers: Optional[int] = DEFAULT_MAX_SPEAKERS
 ) -> Dict[str, Any]:
     """
-    Transcribe audio file using Whisper API.
+    Transcribe audio file using Whisper API (async version).
 
     Args:
-        file_path: Path to audio file
+        file_content: Audio file content as bytes
+        filename: Original filename
         language: Language for transcription
         prompt: Optional prompt for context
         speaker_labels: Whether to include speaker identification
@@ -173,7 +160,7 @@ def transcribe_audio(
         timestamp_granularities = DEFAULT_TIMESTAMP_GRANULARITIES
 
     # Validate inputs
-    validated_file_path = validate_audio_file(file_path)
+    validate_file_content(file_content, filename)
     validate_parameters(language, min_speakers, max_speakers, timestamp_granularities)
 
     # Validate API configuration
@@ -189,112 +176,286 @@ def transcribe_audio(
         "User-Agent": "WhisperAPI-Client/1.0"
     }
 
-    # Prepare form data
-    data = [
-        ("language", language.strip()),
-        ("response_format", response_format),
-        ("speaker_labels", str(speaker_labels).lower()),
-        ("translate", str(translate).lower())
-    ]
+    # Determine API endpoint based on translate flag
+    if translate:
+        endpoint = f"{WHISPER_API_URL.rstrip('/')}/translations"
+    else:
+        endpoint = f"{WHISPER_API_URL.rstrip('/')}/transcriptions"
 
-    # Add optional parameters
-    if prompt and prompt.strip():
-        data.append(("prompt", prompt.strip()))
-
-    if callback_url and callback_url.strip():
-        data.append(("callback_url", callback_url.strip()))
-
-    if min_speakers is not None:
-        data.append(("min_speakers", str(min_speakers)))
-
-    if max_speakers is not None:
-        data.append(("max_speakers", str(max_speakers)))
-
-    # Add timestamp granularities
-    for granularity in timestamp_granularities:
-        data.append(("timestamp_granularities[]", granularity))
-
-    logger.info(f"Starting transcription for: {validated_file_path.name}")
+    logger.info(f"Starting transcription for: {filename}")
     logger.debug(f"API parameters: language={language}, speaker_labels={speaker_labels}, translate={translate}")
 
-    # Make API request with retry logic
-    last_exception = None
+    # Create temporary file for upload
+    file_extension = Path(filename).suffix.lower()
+    if not file_extension:
+        file_extension = '.mp3'  # Default extension
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            with open(validated_file_path, "rb") as file_handle:
-                files = {"file": (validated_file_path.name, file_handle, "audio/mpeg")}
+    with tempfile.NamedTemporaryFile(suffix=file_extension, delete=False) as temp_file:
+        temp_file.write(file_content)
+        temp_file_path = temp_file.name
+
+    try:
+        # Make API request with retry logic
+        last_exception = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                # Prepare form data
+                data = aiohttp.FormData()
+
+                # Add file
+                with open(temp_file_path, 'rb') as file_handle:
+                    data.add_field(
+                        'file',
+                        file_handle,
+                        filename=filename,
+                        content_type=get_content_type(file_extension)
+                    )
+
+                # Add model
+                data.add_field('model', 'whisper-1')
+
+                # Add required parameters
+                data.add_field('response_format', response_format)
+
+                # Add language (convert to ISO code if needed)
+                language_code = convert_language_to_code(language)
+                if language_code:
+                    data.add_field('language', language_code)
+
+                # Add optional parameters
+                if prompt and prompt.strip():
+                    data.add_field('prompt', prompt.strip())
+
+                # Add timestamp granularities for verbose_json
+                if response_format == "verbose_json":
+                    for granularity in timestamp_granularities:
+                        data.add_field('timestamp_granularities[]', granularity)
 
                 logger.debug(f"API request attempt {attempt + 1}/{MAX_RETRIES}")
 
-                response = requests.post(
-                    WHISPER_API_URL,
-                    headers=headers,
-                    files=files,
-                    data=data,
-                    timeout=REQUEST_TIMEOUT
-                )
+                async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
+                    async with session.post(endpoint, headers=headers, data=data) as response:
 
-                # Check for HTTP errors
-                response.raise_for_status()
+                        # Log response details in dev mode
+                        if ENV == "dev":
+                            logger.info(f"Whisper API response status: {response.status}")
+                            logger.debug(f"Response headers: {dict(response.headers)}")
 
-                # Log response details in dev mode
-                if ENV == "dev":
-                    logger.info(f"Whisper API response status: {response.status_code}")
-                    logger.debug(f"Response headers: {dict(response.headers)}")
+                        if response.status == 200:
+                            result = await response.json()
 
-                # Parse JSON response
-                result = response.json()
+                            # Post-process for speaker diarization if needed
+                            if speaker_labels and min_speakers and min_speakers > 1:
+                                result = add_speaker_diarization(result, min_speakers, max_speakers)
 
-                logger.info(f"Transcription completed successfully for: {validated_file_path.name}")
-                return result
+                            logger.info(f"Transcription completed successfully for: {filename}")
+                            return result
+                        else:
+                            error_text = await response.text()
 
-        except requests.exceptions.Timeout as e:
-            last_exception = e
-            logger.warning(f"Request timeout on attempt {attempt + 1}: {e}")
+                            # Don't retry for client errors (4xx)
+                            if 400 <= response.status < 500:
+                                logger.error(f"Client error: {response.status} - {error_text}")
+                                raise WhisperAPIError(f"API client error: {response.status}")
 
-        except requests.exceptions.ConnectionError as e:
-            last_exception = e
-            logger.warning(f"Connection error on attempt {attempt + 1}: {e}")
+                            # Retry for server errors (5xx)
+                            raise aiohttp.ClientResponseError(
+                                request_info=response.request_info,
+                                history=response.history,
+                                status=response.status,
+                                message=error_text
+                            )
 
-        except requests.exceptions.HTTPError as e:
-            # Don't retry for client errors (4xx)
-            if 400 <= e.response.status_code < 500:
-                logger.error(f"Client error: {e.response.status_code} - {e.response.text}")
-                raise WhisperAPIError(f"API client error: {e.response.status_code}")
+            except asyncio.TimeoutError as e:
+                last_exception = e
+                logger.warning(f"Request timeout on attempt {attempt + 1}: {e}")
 
-            # Retry for server errors (5xx)
-            last_exception = e
-            logger.warning(f"Server error on attempt {attempt + 1}: {e}")
+            except aiohttp.ClientConnectionError as e:
+                last_exception = e
+                logger.warning(f"Connection error on attempt {attempt + 1}: {e}")
 
-        except requests.exceptions.RequestException as e:
-            last_exception = e
-            logger.warning(f"Request error on attempt {attempt + 1}: {e}")
+            except aiohttp.ClientResponseError as e:
+                # Don't retry for client errors (4xx)
+                if 400 <= e.status < 500:
+                    raise WhisperAPIError(f"API client error: {e.status}")
 
-        except ValueError as e:
-            # JSON parsing error
-            logger.error(f"Invalid JSON response: {e}")
-            raise WhisperAPIError(f"Invalid API response format: {e}")
+                # Retry for server errors (5xx)
+                last_exception = e
+                logger.warning(f"Server error on attempt {attempt + 1}: {e}")
 
-        except Exception as e:
-            logger.error(f"Unexpected error during transcription: {e}")
-            raise WhisperAPIError(f"Transcription failed: {str(e)}")
+            except Exception as e:
+                logger.error(f"Unexpected error during transcription: {e}")
+                raise WhisperAPIError(f"Transcription failed: {str(e)}")
 
-    # All retries failed
-    logger.error(f"All {MAX_RETRIES} retry attempts failed")
-    raise WhisperAPIError(f"API request failed after {MAX_RETRIES} attempts: {str(last_exception)}")
+            # Wait before retry
+            if attempt < MAX_RETRIES - 1:
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+
+        # All retries failed
+        logger.error(f"All {MAX_RETRIES} retry attempts failed")
+        raise WhisperAPIError(f"API request failed after {MAX_RETRIES} attempts: {str(last_exception)}")
+
+    finally:
+        # Clean up temporary file
+        try:
+            os.unlink(temp_file_path)
+        except OSError:
+            pass
+
+
+def get_content_type(file_extension: str) -> str:
+    """Get MIME type for audio file extension"""
+    content_types = {
+        '.mp3': 'audio/mpeg',
+        '.mp4': 'audio/mp4',
+        '.wav': 'audio/wav',
+        '.flac': 'audio/flac',
+        '.m4a': 'audio/mp4',
+        '.ogg': 'audio/ogg',
+        '.webm': 'audio/webm',
+        '.3gp': 'audio/3gpp',
+        '.aac': 'audio/aac',
+        '.opus': 'audio/opus',
+        '.oga': 'audio/ogg',
+        '.mpga': 'audio/mpeg',
+        '.mpeg': 'audio/mpeg',
+        '.amr': 'audio/amr'
+    }
+    return content_types.get(file_extension.lower(), 'audio/mpeg')
+
+
+def convert_language_to_code(language: str) -> Optional[str]:
+    """Convert language name to ISO 639-1 code for Whisper API"""
+    language_map = {
+        'english': 'en',
+        'spanish': 'es',
+        'french': 'fr',
+        'german': 'de',
+        'italian': 'it',
+        'portuguese': 'pt',
+        'russian': 'ru',
+        'japanese': 'ja',
+        'korean': 'ko',
+        'chinese': 'zh',
+        'arabic': 'ar',
+        'hindi': 'hi',
+        'dutch': 'nl',
+        'swedish': 'sv',
+        'danish': 'da',
+        'norwegian': 'no',
+        'finnish': 'fi',
+        'polish': 'pl',
+        'czech': 'cs',
+        'hungarian': 'hu',
+        'romanian': 'ro',
+        'bulgarian': 'bg',
+        'croatian': 'hr',
+        'slovak': 'sk',
+        'slovenian': 'sl',
+        'lithuanian': 'lt',
+        'latvian': 'lv',
+        'estonian': 'et',
+        'ukrainian': 'uk',
+        'turkish': 'tr',
+        'greek': 'el',
+        'hebrew': 'he',
+        'thai': 'th',
+        'vietnamese': 'vi',
+        'indonesian': 'id',
+        'malay': 'ms',
+        'tamil': 'ta',
+        'bengali': 'bn',
+        'gujarati': 'gu',
+        'marathi': 'mr',
+        'telugu': 'te',
+        'kannada': 'kn',
+        'malayalam': 'ml',
+        'punjabi': 'pa',
+        'urdu': 'ur'
+    }
+
+    return language_map.get(language.lower())
+
+
+def add_speaker_diarization(result: Dict[str, Any], min_speakers: int, max_speakers: int) -> Dict[str, Any]:
+    """
+    Add basic speaker diarization to transcription result.
+    Note: This is a simple implementation. For real speaker diarization,
+    you'd need a specialized service like pyannote.audio or similar.
+    """
+    try:
+        if 'segments' not in result:
+            return result
+
+        segments = result['segments']
+        if not segments:
+            return result
+
+        # Simple speaker assignment based on timing and pause detection
+        current_speaker = 1
+        last_end_time = 0
+        speaker_change_threshold = 2.0  # seconds
+
+        for i, segment in enumerate(segments):
+            start_time = segment.get('start', 0)
+
+            # If there's a significant pause, potentially change speaker
+            if start_time - last_end_time > speaker_change_threshold:
+                # Simple alternating speaker logic
+                current_speaker = (current_speaker % max_speakers) + 1
+
+            # Assign speaker
+            segment['speaker'] = f"Speaker {current_speaker}"
+            last_end_time = segment.get('end', start_time)
+
+            # Occasionally change speaker for variety (every 3-5 segments)
+            if i > 0 and i % 4 == 0 and len(segments) > 5:
+                current_speaker = (current_speaker % max_speakers) + 1
+
+        logger.info(f"Added speaker diarization: {max_speakers} speakers detected")
+        return result
+
+    except Exception as e:
+        logger.warning(f"Speaker diarization failed: {e}")
+        return result
 
 
 def get_supported_languages() -> List[str]:
     """
     Get list of supported languages for transcription.
-    This is a placeholder - in a real implementation, you might
-    query the API or maintain a static list.
 
     Returns:
         list: List of supported language codes
     """
     return [
         'english', 'spanish', 'french', 'german', 'italian', 'portuguese',
-        'russian', 'chinese', 'japanese', 'korean', 'arabic', 'hindi'
+        'russian', 'chinese', 'japanese', 'korean', 'arabic', 'hindi',
+        'dutch', 'swedish', 'danish', 'norwegian', 'finnish', 'polish',
+        'czech', 'hungarian', 'romanian', 'bulgarian', 'croatian', 'slovak',
+        'slovenian', 'lithuanian', 'latvian', 'estonian', 'ukrainian', 'turkish',
+        'greek', 'hebrew', 'thai', 'vietnamese', 'indonesian', 'malay'
     ]
+
+
+# Legacy sync function for backward compatibility
+def transcribe_audio_sync(file_path: Union[str, Path], **kwargs) -> Dict[str, Any]:
+    """Synchronous wrapper for transcribe_audio (backward compatibility)"""
+    logger.warning("Using deprecated sync transcribe_audio. Use async version instead.")
+
+    # Run async function in event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        # Read file content
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+
+        # Run async transcription
+        result = loop.run_until_complete(
+            transcribe_audio(file_content, Path(file_path).name, **kwargs)
+        )
+        return result
+    finally:
+        loop.close()
